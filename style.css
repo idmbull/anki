@@ -1,0 +1,265 @@
+/* --- 1. FONTS & GLOBAL --- */
+@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0');
+
+/* Fix Layout Shift */
+html { overflow-y: scroll; }
+
+/* --- 2. VARIABLES --- */
+.card {
+    --bg-body: #f6f7f8;
+    --bg-card: #ffffff;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --accent-color: #136dec;
+    --accent-bg: rgba(19, 109, 236, 0.1);
+    --divider: #f1f5f9;
+    --example-bg: #f8fafc;
+    --example-text: #475569;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --border: #e2e8f0;
+    
+    /* Marking Colors */
+    --correct-color: #16a34a;
+    --wrong-color: #dc2626;
+    --missing-color: #ef4444;
+}
+
+.night .card, .night.card, .nightMode .card, .nightMode.card {
+    --bg-body: #101822;
+    --bg-card: #1c2027;
+    --text-primary: #ffffff;
+    --text-secondary: #9da8b9;
+    --accent-color: #3b82f6;
+    --accent-bg: rgba(59, 130, 246, 0.2);
+    --divider: #334155;
+    --example-bg: #252a33;
+    --example-text: #cbd5e1;
+    --shadow: none;
+    --border: #1e293b;
+    
+    --correct-color: #4ade80;
+    --wrong-color: #f87171;
+    --missing-color: #fca5a5;
+}
+
+/* --- 3. CONTAINER --- */
+.card {
+    font-family: 'Lexend', sans-serif; font-size: 16px; line-height: 1.5;
+    background-color: var(--bg-body); color: var(--text-primary);
+    min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;
+    display: flex; justify-content: center; align-items: flex-start;
+}
+
+.container {
+    /* Mặc định cho Mobile (Màn hình nhỏ) */
+    width: 95%;       /* Chiếm 95% chiều ngang màn hình */
+    margin: 0 auto;   /* Căn giữa */
+    
+    background-color: var(--bg-card);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    box-sizing: border-box; /* Quan trọng: padding không làm phình thẻ */
+}
+
+/* --- 4. IMAGE --- */
+.image-area {
+    width: 100%; aspect-ratio: 16 / 9; max-height: 350px;
+    background-color: var(--bg-body); position: relative;
+    overflow: hidden; border-bottom: 1px solid var(--border); box-sizing: border-box;
+}
+
+.image-area img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.image-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); pointer-events: none; opacity: 0.5; }
+
+/* Placeholder */
+.image-area.placeholder {
+    display: flex; align-items: center; justify-content: center;
+    background-image: radial-gradient(var(--border) 1px, transparent 1px);
+    background-size: 10px 10px; background-color: var(--bg-body);
+}
+.icon-placeholder { font-size: 48px !important; color: var(--text-secondary); opacity: 0.2; user-select: none; }
+
+/* --- 5. CONTENT --- */
+.content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
+.header { display: flex; justify-content: space-between; align-items: center; }
+.word { font-size: 28px; font-weight: 700; color: var(--text-primary); margin: 0; line-height: 1.2; }
+
+.audio-btn {
+    width: 42px; height: 42px; border-radius: 50%;
+    background-color: var(--accent-bg); color: var(--accent-color);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; flex-shrink: 0; transition: transform 0.1s;
+}
+.audio-btn:active { transform: scale(0.95); }
+
+.sub-header { display: flex; align-items: center; gap: 10px; margin-top: 4px; flex-wrap: wrap; }
+.pos-tag {
+    background-color: var(--accent-bg); color: #ffffff;
+    font-size: 12px; font-weight: 600; padding: 4px 10px;
+    border-radius: 4px; text-transform: capitalize;
+}
+.ipa { font-size: 16px; color: var(--text-secondary); }
+.divider { height: 1px; width: 100%; background-color: var(--divider); margin: 4px 0; }
+
+/* --- 6. DETAILS --- */
+.details { display: flex; flex-direction: column; gap: 16px; }
+.label {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; opacity: 0.8;
+}
+.definition-text { font-size: 17px; color: var(--text-primary); line-height: 1.6; margin: 0; }
+.vn-block { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--divider); }
+.vn-text { font-weight: 500; }
+.example-box {
+    background-color: var(--example-bg); border-left: 4px solid var(--accent-color);
+    padding: 14px 16px; border-radius: 0 8px 8px 0;
+}
+.example-text { font-style: italic; color: var(--example-text); font-size: 16px; line-height: 1.6; margin: 0; }
+
+/* --- 7. TAGS --- */
+.tags-section { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
+.tag-pill {
+    display: inline-block; font-size: 11px; font-weight: 500;
+    color: var(--text-secondary); background-color: var(--bg-body);
+    padding: 4px 12px; border-radius: 99px; border: 1px solid var(--border);
+}
+
+/* --- 8. TOOLTIPS --- */
+.tip-trigger {
+    border-bottom: 2px dotted var(--accent-color); cursor: pointer;
+    position: relative; display: inline-block;
+}
+.tip-trigger:hover, .tip-trigger.active { background-color: var(--accent-bg); color: var(--accent-color); }
+
+.tip-trigger::after {
+    content: attr(data-tip); position: absolute; bottom: 135%; left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background-color: #334155; color: white; padding: 6px 12px;
+    border-radius: 6px; font-size: 13px; width: max-content; max-width: 220px;
+    white-space: pre-wrap; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    opacity: 0; visibility: hidden; pointer-events: none; transition: all 0.2s; z-index: 100;
+}
+.tip-trigger::before {
+    content: ''; position: absolute; bottom: 115%; left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    border: 6px solid transparent; border-top-color: #334155;
+    opacity: 0; visibility: hidden; transition: all 0.2s;
+}
+.tip-trigger:hover::after, .tip-trigger.active::after,
+.tip-trigger:hover::before, .tip-trigger.active::before {
+    opacity: 1; visibility: visible; transform: translateX(-50%) translateY(0);
+}
+.night .tip-trigger::after { background-color: #e2e8f0; color: #0f172a; }
+.night .tip-trigger::before { border-top-color: #e2e8f0; }
+
+/* --- 9. INPUT FIELDS (FRONT) --- */
+.cloze-input {
+    border: none;
+    border-bottom: 2px solid var(--accent-color);
+    background: transparent;
+    color: var(--accent-color);
+    font-family: inherit;
+    font-size: inherit; /* Kế thừa cỡ chữ của câu văn */
+    font-weight: 700;
+    
+    /* QUAN TRỌNG: Để auto và min/max width */
+    width: auto; 
+    min-width: 40px; 
+    max-width: 95%; /* Tránh bị tràn màn hình điện thoại */
+    
+    text-align: center;
+    padding: 0 4px;
+    outline: none;
+    transition: width 0.1s ease, background-color 0.2s; /* Thêm hiệu ứng mượt khi giãn */
+    
+    /* Giúp input nằm thẳng hàng với dòng kẻ */
+    vertical-align: baseline; 
+}
+
+.cloze-input:focus {
+    background-color: var(--accent-bg);
+    border-radius: 4px 4px 0 0;
+    /* Khi focus không set width cứng nữa mà để JS xử lý */
+}
+
+/* --- 10. MARKING RESULTS (BACK) --- */
+.diff-container {
+    /* background-color: var(--bg-body); padding: 2px 6px; */
+    /* border-radius: 6px; border: 1px solid var(--border); */
+    display: inline-block;
+}
+.char-correct { color: var(--correct-color); font-weight: 700; }
+.char-wrong { color: var(--wrong-color); font-weight: 700; text-decoration: line-through; text-decoration-thickness: 2px; }
+.char-missing { color: var(--missing-color); font-weight: 700; letter-spacing: 2px; }
+
+.correct-full { color: var(--correct-color); font-weight: 700; margin-left: 4px; }
+.correction-arrow { color: var(--text-secondary); font-weight: 400; margin: 0 4px; font-size: 0.9em; }
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined'; font-weight: normal; font-style: normal;
+  display: inline-block; line-height: 1; text-transform: none; white-space: nowrap;
+}
+
+/* 11. IMAGE LIGHTBOX (MODAL) */
+.image-area img {
+    cursor: zoom-in; /* Hiện con trỏ kính lúp khi di vào ảnh */
+}
+
+.modal-backdrop {
+    display: none; /* Mặc định ẩn */
+    position: fixed;
+    z-index: 9999; /* Luôn nằm trên cùng */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9); /* Màu nền đen mờ */
+    justify-content: center;
+    align-items: center;
+    cursor: zoom-out; /* Con trỏ thu nhỏ khi click đóng */
+    animation: fadeIn 0.2s;
+}
+
+.modal-content {
+    max-width: 95vw; /* Tối đa 95% chiều rộng màn hình */
+    max-height: 95vh; /* Tối đa 95% chiều cao màn hình */
+    object-fit: contain; /* Giữ tỷ lệ ảnh */
+    border-radius: 4px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10000;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (max-width: 480px) {
+    .card { padding: 0; align-items: stretch; }
+    .container { border-radius: 0; border: none; max-width: none; }
+    .content { padding: 20px; }
+}
+
+@media (min-width: 670px) {
+    .container {
+        width: 650px; 
+    }
+}
+
+.blind-underline {
+    color: var(--text-secondary, #999);
+}
+

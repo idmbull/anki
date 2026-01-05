@@ -1,0 +1,157 @@
+<div class="container">
+    <!-- IMAGE SECTION -->
+    {{#Image}}
+    <div class="image-area">
+         <img src="{{Image}}" alt="Image" onerror="this.style.display='none'" onclick="openImageModal(this)">
+        <div class="image-overlay"></div>
+    </div>
+    {{/Image}}
+
+    <div class="content">
+        <!-- Header Section -->
+        <div class="flex flex-col gap-2">
+            <div class="header">
+                <h1 class="word">{{Word}}</h1>
+                {{#Audio}}
+                <div class="audio-btn" onclick="new Audio('{{Audio}}').play(); event.stopPropagation();">
+                    <span class="material-symbols-outlined" style="font-size: 24px;">volume_up</span>
+                </div>
+                {{/Audio}}
+            </div>
+
+            <div class="sub-header">
+                {{#POS}} <span class="pos-tag">{{POS}}</span> {{/POS}}
+                {{#IPA}} <span class="ipa">{{IPA}}</span> {{/IPA}}
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- CHECKING SECTION -->
+        <div class="details">
+            {{#Definition}}
+            <div>
+                <!-- <p class="label">Definition</p> -->
+                <p class="definition-text"  tts="on">{{Definition}}</p>
+            </div>
+            {{/Definition}}
+
+            {{#Example}}
+            <div class="example-box" tts="on">
+                <!-- <p class="label">Example</p> -->
+                <p class="example-text check-process">{{Example}}</p>
+            </div>
+            {{/Example}}
+        </div>
+
+        <!-- TAGS -->
+        {{#Tag}}
+        <div class="tags-section" id="tag-container">{{Tag}}</div>
+        {{/Tag}}
+        {{#Tags}}
+        <div class="tags-section" id="tags-container">{{Tags}}</div>
+        {{/Tags}}
+    </div>
+</div>
+
+<!-- MODAL LIGHTBOX (Khung hiển thị ảnh full) -->
+<div id="img-modal" class="modal-backdrop" onclick="closeImageModal()">
+    <span class="modal-close-btn">&times;</span>
+    <img class="modal-content" id="img-modal-src">
+</div>
+
+<script>
+    // --- 0. IMAGE MODAL LOGIC ---
+    function openImageModal(element) {
+        var modal = document.getElementById("img-modal");
+        var modalImg = document.getElementById("img-modal-src");
+        modal.style.display = "flex"; // Hiện modal
+        modalImg.src = element.src;   // Lấy ảnh từ thẻ img gốc
+    }
+
+    function closeImageModal() {
+        document.getElementById("img-modal").style.display = "none";
+    }
+
+    (function() {
+        // --- 1. AUTO PLAY AUDIO ---
+        var audioUrl = '{{Audio}}';
+        if (audioUrl && audioUrl.trim().length > 0) {
+            setTimeout(function() {
+                var sound = new Audio(audioUrl);
+                sound.play().catch(e => console.log(e));
+            }, 300);
+        }
+
+        // --- 2. CHECKING LOGIC ---
+        var checkElements = document.querySelectorAll('.check-process');
+        var inputIndex = 0;
+
+        checkElements.forEach(function(el) {
+            var bolds = el.querySelectorAll('b, strong');
+            bolds.forEach(function(b) {
+                var rawText = b.innerText.trim();
+                var correctText = rawText;
+                var match = rawText.match(/^\{([^|]+)\|/);
+                if (match) correctText = match[1];
+
+                var userText = sessionStorage.getItem('anki_input_' + inputIndex) || "";
+                
+                var htmlResult = '<span class="diff-container">';
+                var cChars = correctText.split('');
+                var uChars = userText.split('');
+                var maxLength = Math.max(cChars.length, uChars.length);
+                var hasError = false;
+
+                for (var i = 0; i < maxLength; i++) {
+                    var c = cChars[i] || "";
+                    var u = uChars[i] || "";
+                    if (c.toLowerCase() === u.toLowerCase()) {
+                        htmlResult += '<span class="char-correct">' + c + '</span>';
+                    } else {
+                        hasError = true;
+                        if (u === "") htmlResult += '<span class="char-missing">_</span>';
+                        else htmlResult += '<span class="char-wrong">' + u + '</span>';
+                    }
+                }
+                htmlResult += '</span>';
+
+                if (hasError) {
+                    htmlResult += ' <span class="correction-arrow">➜</span> <span class="correct-full">' + correctText + '</span>';
+                } else {
+                    htmlResult = '<span class="char-correct">' + correctText + '</span>';
+                }
+
+                b.outerHTML = htmlResult;
+                inputIndex++;
+            });
+
+            var content = el.innerHTML;
+            content = content.replace(/\{([^|}]+)\|([^}]+)\}/g, function(match, word, tip) {
+                return '<span class="tip-trigger" data-tip="' + tip + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + word + '</span>';
+            });
+            el.innerHTML = content;
+        });
+
+        // --- 3. TOOLTIPS & TAGS ---
+        var tooltips = document.querySelectorAll('.process-tooltip');
+        tooltips.forEach(function(el) {
+            el.innerHTML = el.innerHTML.replace(/\{([^|}]+)\|([^}]+)\}/g, function(match, w, t) {
+                return '<span class="tip-trigger" data-tip="' + t + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + w + '</span>';
+            });
+        });
+
+        var tagContainer = document.getElementById('tag-container');
+        if (tagContainer && tagContainer.innerText.trim()) {
+            // var tags = tagContainer.innerText.indexOf(',') > -1 ? tagContainer.innerText.split(',') : tagContainer.innerText.split(' ');
+            var tags = tagContainer.innerText.split(',');
+            tagContainer.innerHTML = tags.map(t => t.trim() ? '<span class="tag-pill">'+t.trim()+'</span>' : '').join('');
+        }
+
+        document.addEventListener('click', function(e) {
+            if (!e.target.classList.contains('tip-trigger')) {
+                document.querySelectorAll('.tip-trigger.active').forEach(t => t.classList.remove('active'));
+            }
+        });
+    })();
+</script>
