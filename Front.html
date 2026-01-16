@@ -1,15 +1,12 @@
 <div class="container">
-    <!-- IMAGE PLACEHOLDER -->
     {{#Image}}
     <div class="image-area placeholder">
-        <!-- <span class="material-symbols-outlined icon-placeholder">image</span> -->
         <img src="{{Image}}" alt="Image" onerror="this.style.display='none'">
         <div class="image-overlay"></div>
     </div>
     {{/Image}}
 
     <div class="content">
-        <!-- Header -->
         <div class="flex flex-col gap-2">
             <div class="header">
                 {{#Vietnamese}}<h1 class="word">{{Vietnamese}}</h1>{{/Vietnamese}}
@@ -20,29 +17,19 @@
                 </div>
                 {{/Audio}}
             </div>
-
             <div class="sub-header">
                 {{#POS}} <span class="pos-tag">{{POS}}</span> {{/POS}}
-                <!-- {{#IPA}} <span class="ipa">{{IPA}}</span> {{/IPA}} -->
             </div>
         </div>
 
         <div class="divider"></div>
 
-        <!-- INPUT SECTION -->
         <div class="details">
             {{#Definition}}
-            <div>
-                <!-- <p class="label">Definition</p> -->
-                <p class="definition-text input-process blind" tts="on">{{Definition}}</p>
-            </div>
+            <div><p class="definition-text input-process blind" tts="on">{{Definition}}</p></div>
             {{/Definition}}
-
             {{#Example}}
-            <div class="example-box">
-                <!-- <p class="label">Example</p> -->
-                <p class="example-text input-process">{{Example}}</p>
-            </div>
+            <div class="example-box"><p class="example-text input-process">{{Example}}</p></div>
             {{/Example}}
         </div>
 
@@ -53,105 +40,82 @@
 </div>
 
 <script>
-    // --- UTILS ---
-    function saveInput(index, value) {
-        sessionStorage.setItem('anki_input_' + index, value);
+    // --- HELPERS ---
+    function parseContent(rawText) {
+        var clean = rawText.replace(/^\{+/, "").replace(/\}+$/, "");
+        var parts = clean.split(/\||｜/); 
+        var text = parts[0].trim();
+        var hint = parts.length > 1 ? parts[1].trim() : "...";
+        if (parts.length === 1 && clean.indexOf('|') === -1) hint = "..."; 
+        return { text: text, hint: hint };
     }
 
-    // Hàm tự động chỉnh độ rộng khi gõ
+    function saveInput(index, value) { sessionStorage.setItem('anki_input_' + index, value); }
+    
     function resizeInput(el) {
-        var valLength = el.value.length;
-        if (valLength < 3) valLength = 3;
-        el.style.width = (valLength + 2) + 'ch';
+        var len = el.value.length < 3 ? 3 : el.value.length;
+        el.style.width = (len + 2) + 'ch';
     }
 
     function triggerFlip() {
-        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
-            document.activeElement.blur();
-        }
-        setTimeout(function () {
+        if (document.activeElement) document.activeElement.blur();
+        setTimeout(function() {
             if (typeof pycmd !== "undefined") pycmd("ans");
-            else if (typeof study !== "undefined" && typeof study.drawAnswer === "function") study.drawAnswer();
+            else if (typeof study !== "undefined") study.drawAnswer();
             else if (typeof AnkiDroidJS !== "undefined") AnkiDroidJS.ankiShowAnswer();
         }, 10);
     }
 
-    function checkEnter(event) {
-        if (event.key === "Enter" || event.keyCode === 13) {
-            event.preventDefault();
-            triggerFlip();
+    // --- EVENT DELEGATION ---
+    document.addEventListener('input', function(e) {
+        if(e.target.classList.contains('cloze-input')) {
+            saveInput(e.target.dataset.index, e.target.value);
+            resizeInput(e.target);
         }
-    }
+    });
+    
+    document.addEventListener('keydown', function(e) {
+        if(e.target.classList.contains('cloze-input') && (e.key === "Enter" || e.keyCode === 13)) {
+            e.preventDefault(); triggerFlip();
+        }
+    });
 
     // --- MAIN LOGIC ---
-    (function () {
+    (function() {
         sessionStorage.clear();
-        var textElements = document.querySelectorAll('.input-process');
+        var containers = document.querySelectorAll('.input-process');
         var inputIndex = 0;
 
-        textElements.forEach(function (el) {
-            var bolds = el.querySelectorAll('b, strong');
-            bolds.forEach(function (b) {
-                var rawText = b.innerText.trim();
-
-                // 1. Xử lý trường hợp .blind
+        containers.forEach(function(container) {
+            var bolds = container.querySelectorAll('b, strong, span[style*="font-weight: bold"]');
+            bolds.forEach(function(b) {
+                var data = parseContent(b.textContent);
+                
                 if (b.closest('.blind')) {
-                    var len = rawText.length;
-                    var blindMatch = rawText.match(/^\{([^|]+)\|/);
-                    if (blindMatch) len = blindMatch[1].length;
-                    
-                    if (len < 3) len = 3;
-                    var underline = '.'.repeat(len);
-                    b.outerHTML = '<span class="blind-underline">' + underline + '</span>';
+                    b.outerHTML = '<span class="blind-underline">' + '.'.repeat(data.text.length || 3) + '</span>';
                     return;
                 }
 
-                // 2. Xử lý logic tạo Input
-                var placeholderText = "..."; 
+                var width = Math.max(data.text.length, data.hint.length) + 3;
+                var html = '<input type="text" class="cloze-input" data-index="' + inputIndex + '"' +
+                           ' placeholder="' + data.hint + '" autocomplete="off" style="width:' + width + 'ch">';
                 
-                // Kiểm tra dạng {Answer|Tip}
-                var tipMatch = rawText.match(/^\{([^|]+)\|([^}]+)\}/);
-
-                if (tipMatch) {
-                    rawText = tipMatch[1];       // Đáp án
-                    placeholderText = tipMatch[2]; // Gợi ý
-                } else {
-                    // Fallback dạng cũ
-                    var simpleMatch = rawText.match(/^\{([^|]+)\|/);
-                    if (simpleMatch) rawText = simpleMatch[1];
-                }
-
-                // --- TÍNH TOÁN ĐỘ RỘNG MỚI TẠI ĐÂY ---
-                // Lấy độ dài lớn nhất giữa Đáp án và Gợi ý để khung không bị cắt chữ
-                var maxLen = Math.max(rawText.length, placeholderText.length);
-                
-                // Cộng thêm khoảng 2-3 đơn vị (ch) để tạo khoảng trống thoải mái
-                var initialWidth = (maxLen + 3) + 'ch'; 
-                var inputID = 'user-input-' + inputIndex;
-
-                var inputHTML =
-                    '<input type="text" class="cloze-input" id="' + inputID + '"' +
-                    ' placeholder="' + placeholderText + '" autocomplete="off"' + 
-                    ' style="width:' + initialWidth + '; min-width: 3ch;"' + // Thêm min-width
-                    ' oninput="saveInput(\'' + inputIndex + '\', this.value); resizeInput(this)"' +
-                    ' onkeydown="checkEnter(event)">';
-
-                b.outerHTML = inputHTML;
+                b.outerHTML = html;
                 inputIndex++;
             });
 
-            // Xử lý các tip-trigger còn lại
-            var content = el.innerHTML;
-            content = content.replace(/\{([^|}]+)\|([^}]+)\}/g, function (match, word, tip) {
-                return '<span class="tip-trigger" data-tip="' + tip + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + word + '</span>';
-            });
-            el.innerHTML = content;
+            var content = container.innerHTML;
+            if(content.indexOf('{') > -1) {
+                content = content.replace(/\{([^|}]+)\|([^}]+)\}/g, function(match, word, tip) {
+                    return '<span class="tip-trigger" data-tip="' + tip + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + word + '</span>';
+                });
+                container.innerHTML = content;
+            }
         });
 
-        // Auto Focus
-        setTimeout(function () {
-            var firstInput = document.querySelector('.cloze-input');
-            if (firstInput) firstInput.focus();
+        setTimeout(function() {
+            var first = document.querySelector('.cloze-input');
+            if(first) first.focus();
         }, 100);
     })();
 </script>

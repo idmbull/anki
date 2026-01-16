@@ -1,26 +1,23 @@
-<div class="container">
-    <!-- IMAGE SECTION -->
+<div class="container back-mode">
     {{#Image}}
     <div class="image-area">
-        <img src="{{Image}}" alt="Image" onerror="this.style.display='none'" onclick="openImageModal(this)">
+        <img src="{{Image}}" alt="Image" onerror="this.style.display='none'" onclick="openModal(this)">
         <div class="image-overlay"></div>
     </div>
     {{/Image}}
 
     <div class="content">
-        <!-- Header Section -->
         <div class="flex flex-col gap-2">
             <div class="header">
                 <h1 class="word">{{Word}}</h1>
+                
                 {{#Audio}}
-                <!-- Dùng ID để lấy Audio an toàn hơn -->
-                <div id="audio-src-hidden" style="display: none;">{{Audio}}</div>
-                <div class="audio-btn" id="btn-play-audio">
+                <div id="audio-url-storage" style="display:none">{{Audio}}</div>
+                <div class="audio-btn" id="btn-play">
                     <span class="material-symbols-outlined" style="font-size: 24px;">volume_up</span>
                 </div>
                 {{/Audio}}
             </div>
-
             <div class="sub-header">
                 {{#POS}} <span class="pos-tag">{{POS}}</span> {{/POS}}
                 {{#IPA}} <span class="ipa">{{IPA}}</span> {{/IPA}}
@@ -29,170 +26,217 @@
 
         <div class="divider"></div>
 
-        <!-- CHECKING SECTION -->
         <div class="details">
             {{#Definition}}
-            <div>
-                <!-- Đã thêm class check-process vào đây để đồng bộ với mặt trước -->
-                <p class="definition-text" tts="on">{{Definition}}</p>
-            </div>
+            <div><p class="definition-text" tts="on">{{Definition}}</p></div>
             {{/Definition}}
-
             {{#Example}}
-            <div class="example-box" tts="on">
-                <p class="example-text check-process">{{Example}}</p>
-            </div>
+            <div class="example-box" tts="on"><p class="example-text check-process">{{Example}}</p></div>
             {{/Example}}
+
+            <!-- NOTES TOGGLE -->
+            {{#Notes}}
+            <div class="toggle-box">
+                <div class="toggle-header" onclick="toggleNotes(this)">
+                    <span class="material-symbols-outlined arrow-icon">keyboard_arrow_right</span>
+                    
+                </div>
+                <div class="toggle-content" style="display: none;">
+                    <div class="notes-text">{{Notes}}</div>
+                </div>
+            </div>
+            {{/Notes}}
         </div>
 
-        <!-- TAGS -->
-        {{#Tag}}
-        <div class="tags-section" id="tag-container">{{Tag}}</div>
-        {{/Tag}}
-        {{#Tags}}
-        <div class="tags-section" id="tags-container">{{Tags}}</div>
-        {{/Tags}}
+        {{#Tag}}<div class="tags-section" id="tag-container">{{Tag}}</div>{{/Tag}}
+        {{#Tags}}<div class="tags-section" id="tags-container">{{Tags}}</div>{{/Tags}}
     </div>
 </div>
 
-<!-- MODAL LIGHTBOX -->
-<div id="img-modal" class="modal-backdrop" onclick="closeImageModal()">
+<!-- MODAL -->
+<div id="img-modal" class="modal-backdrop" onclick="this.style.display='none'">
     <span class="modal-close-btn">&times;</span>
     <img class="modal-content" id="img-modal-src">
 </div>
 
 <script>
-    // --- 0. IMAGE MODAL LOGIC ---
-    function openImageModal(element) {
-        var modal = document.getElementById("img-modal");
-        var modalImg = document.getElementById("img-modal-src");
-        if(modal && modalImg) {
-            modal.style.display = "flex"; 
-            modalImg.src = element.src;   
+    // --- HELPERS ---
+    function parseContent(rawText) {
+        var clean = rawText.replace(/^\{+/, "").replace(/\}+$/, "");
+        var parts = clean.split(/\||｜/);
+        var text = parts[0].trim();
+        var hint = parts.length > 1 ? parts[1].trim() : "";
+        return { text: text, hint: hint };
+    }
+
+    function toggleNotes(el) {
+        var content = el.nextElementSibling;
+        var icon = el.querySelector('.arrow-icon');
+        if (content.style.display === "block") {
+            content.style.display = "none";
+            icon.innerText = "keyboard_arrow_right";
+            el.classList.remove("active");
+        } else {
+            content.style.display = "block";
+            icon.innerText = "keyboard_arrow_down";
+            el.classList.add("active");
         }
     }
 
-    function closeImageModal() {
-        var modal = document.getElementById("img-modal");
-        if(modal) modal.style.display = "none";
+    function openModal(el) {
+        var m = document.getElementById('img-modal');
+        var i = document.getElementById('img-modal-src');
+        if(m && i) { m.style.display = 'flex'; i.src = el.src; }
     }
 
-    // --- MAIN SCRIPT ---
-    (function () {
+    // --- MAIN LOGIC ---
+    (function() {
+        
+        // 1. XỬ LÝ TEXT (HIỂN THỊ NGAY LẬP TỨC - KHÔNG DELAY)
         try {
-            // --- 1. SAFE AUDIO PLAY ---
-            var audioDiv = document.getElementById('audio-src-hidden');
-            var btnAudio = document.getElementById('btn-play-audio');
+            var allTextAreas = document.querySelectorAll('.definition-text, .check-process, .notes-text');
             
-            if (audioDiv) {
-                var audioUrl = audioDiv.innerText.trim();
-                
-                // Auto play logic
-                if (audioUrl.length > 0) {
-                    setTimeout(function () {
-                        var sound = new Audio(audioUrl);
-                        sound.play().catch(function(e){ console.log("Audio Error:", e); });
-                    }, 300);
-                }
-
-                // Click to play logic
-                if (btnAudio) {
-                    btnAudio.onclick = function(e) {
-                        e.stopPropagation();
-                        new Audio(audioUrl).play();
-                    };
-                }
-            }
-
-            // --- 2. CHECKING LOGIC ---
-            var checkElements = document.querySelectorAll('.check-process');
+            // Cloze Check
+            var checkContainers = document.querySelectorAll('.check-process');
             var inputIndex = 0;
-
-            checkElements.forEach(function (el) {
-                var bolds = el.querySelectorAll('b, strong');
-                bolds.forEach(function (b) {
-                    var rawText = b.innerText.trim();
-                    var correctText = rawText;
+            checkContainers.forEach(function(container) {
+                var bolds = container.querySelectorAll('b, strong, span[style*="font-weight: bold"]');
+                bolds.forEach(function(b) {
+                    var data = parseContent(b.textContent);
+                    var correct = data.text;
+                    var user = sessionStorage.getItem('anki_input_' + inputIndex) || "";
                     
-                    // Xử lý {Answer|Tip}
-                    var match = rawText.match(/^\{([^|]+)\|/);
-                    if (match) correctText = match[1];
-
-                    // Lấy kết quả từ Front
-                    var userText = sessionStorage.getItem('anki_input_' + inputIndex) || "";
-
-                    var htmlResult = '<span class="diff-container">';
-                    var cChars = correctText.split('');
-                    var uChars = userText.split('');
-                    var maxLength = Math.max(cChars.length, uChars.length);
-                    var hasError = false;
-
-                    for (var i = 0; i < maxLength; i++) {
-                        var c = cChars[i] || "";
-                        var u = uChars[i] || "";
-                        
-                        // So sánh không phân biệt hoa thường
-                        if (c.toLowerCase() === u.toLowerCase()) {
-                            htmlResult += '<span class="char-correct">' + c + '</span>';
-                        } else {
-                            hasError = true;
-                            if (u === "") htmlResult += '<span class="char-missing">_</span>';
-                            else htmlResult += '<span class="char-wrong">' + u + '</span>';
+                    var html = '<span class="diff-container">';
+                    var cArr = correct.split('');
+                    var uArr = user.split('');
+                    var max = Math.max(cArr.length, uArr.length);
+                    var err = false;
+                    for(var i=0; i<max; i++) {
+                        var c = cArr[i]||"", u = uArr[i]||"";
+                        if(c.toLowerCase() === u.toLowerCase()) html += '<span class="char-correct">'+c+'</span>';
+                        else {
+                            err = true;
+                            html += (u==="") ? '<span class="char-missing">_</span>' : '<span class="char-wrong">'+u+'</span>';
                         }
                     }
-                    htmlResult += '</span>';
+                    html += '</span>';
+                    if(err) html += ' <span class="correction-arrow">➜</span> <span class="correct-full">'+correct+'</span>';
+                    else html = '<span class="char-correct">'+correct+'</span>';
 
-                    if (hasError) {
-                        htmlResult += ' <span class="correction-arrow">➜</span> <span class="correct-full">' + correctText + '</span>';
-                    } else {
-                        // Nếu đúng hoàn toàn thì hiển thị màu xanh
-                        htmlResult = '<span class="char-correct">' + correctText + '</span>';
-                    }
-                    
-                    b.outerHTML = htmlResult;
+                    b.outerHTML = html;
                     inputIndex++;
                 });
-
-                // Xử lý Tooltip
-                var content = el.innerHTML;
-                content = content.replace(/\{([^|}]+)\|([^}]+)\}/g, function (match, word, tip) {
-                    return '<span class="tip-trigger" data-tip="' + tip + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + word + '</span>';
-                });
-                el.innerHTML = content;
             });
 
-            // --- 3. TAGS & OTHER TOOLTIPS ---
-            var tooltips = document.querySelectorAll('.process-tooltip');
-            tooltips.forEach(function (el) {
-                el.innerHTML = el.innerHTML.replace(/\{([^|}]+)\|([^}]+)\}/g, function (match, w, t) {
-                    return '<span class="tip-trigger" data-tip="' + t + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + w + '</span>';
+            // Notes Tooltips
+            var noteContainers = document.querySelectorAll('.notes-text');
+            noteContainers.forEach(function(container) {
+                var bolds = container.querySelectorAll('b, strong');
+                bolds.forEach(function(b) {
+                    var data = parseContent(b.textContent);
+                    if (data.hint) {
+                        b.classList.add('tip-trigger');
+                        b.setAttribute('data-tip', data.hint);
+                        b.setAttribute('onclick', "this.classList.toggle('active'); event.stopPropagation();");
+                        b.innerText = data.text; 
+                    }
                 });
             });
 
-            var tagContainer = document.getElementById('tag-container');
-            if (!tagContainer) tagContainer = document.getElementById('tags-container'); // Fallback nếu dùng field Tags
-            
-            if (tagContainer && tagContainer.innerText.trim()) {
-                var tagsText = tagContainer.innerText.trim();
-                // Xử lý cả dấu phẩy và dấu cách
-                // var tags = tagsText.indexOf(',') > -1 ? tagsText.split(',') : tagsText.split(/\s+/);
-                var tags = tagsText.indexOf(',') > -1 ? tagsText.split(',') : tagsText.split(',');
-
-                tagContainer.innerHTML = tags.map(function(t) {
-                    return t.trim() ? '<span class="tag-pill">' + t.trim() + '</span>' : '';
-                }).join('');
-            }
-
-            document.addEventListener('click', function (e) {
-                if (!e.target.classList.contains('tip-trigger')) {
-                    document.querySelectorAll('.tip-trigger.active').forEach(function(t) {
-                        t.classList.remove('active');
+            // {word|tip} Replacement
+            allTextAreas.forEach(function(area) {
+                var html = area.innerHTML;
+                if(html.indexOf('{') > -1) {
+                    html = html.replace(/\{([^|}]+)\|([^}]+)\}/g, function(m, w, t) {
+                        return '<span class="tip-trigger" data-tip="'+t+'" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">'+w+'</span>';
                     });
+                    area.innerHTML = html;
                 }
+                // Reveal text immediately
+                area.classList.add('text-revealed');
             });
+            
+            // Fallback reveal
+            allTextAreas.forEach(el => el.classList.add('text-revealed'));
 
-        } catch (err) {
-            console.log("Anki Template Error: ", err);
+        } catch (e) {
+            console.error(e);
+            document.querySelectorAll('.definition-text, .example-text, .notes-text').forEach(el => el.classList.add('text-revealed'));
         }
+
+        // Tags
+        var tagContainer = document.getElementById('tag-container');
+        if (!tagContainer) tagContainer = document.getElementById('tags-container'); 
+        if (tagContainer && tagContainer.innerText.trim()) {
+            var tagsText = tagContainer.innerText.trim();
+            var tags = tagsText.indexOf(',') > -1 ? tagsText.split(',') : tagsText.split(',');
+            tagContainer.innerHTML = tags.map(function(t) {
+                return t.trim() ? '<span class="tag-pill">' + t.trim() + '</span>' : '';
+            }).join('');
+        }
+
+        // 2. XỬ LÝ AUDIO (THÔNG MINH - DỰA TRÊN SỰ KIỆN)
+        // Phần này chạy độc lập, không chặn hiển thị text
+        (function() {
+            var urlDiv = document.getElementById('audio-url-storage');
+            var btn = document.getElementById('btn-play');
+            
+            if (urlDiv) {
+                var audioUrl = urlDiv.innerText.trim();
+                if (audioUrl) {
+                    // Singleton: Đảm bảo chỉ có 1 Player
+                    if (!window.myGlobalAudioPlayer) window.myGlobalAudioPlayer = new Audio();
+                    var player = window.myGlobalAudioPlayer;
+
+                    // Ngắt sự kiện cũ để tránh chạy nhiều lần
+                    player.oncanplay = null;
+                    player.onerror = null;
+
+                    // Reset
+                    player.pause();
+                    player.currentTime = 0;
+                    
+                    // Gán nguồn mới
+                    player.src = audioUrl;
+                    player.load(); // Bắt buộc trình duyệt tải ngay
+
+                    // LOGIC TỰ ĐỘNG PHÁT THÔNG MINH
+                    var played = false;
+                    var playAttempt = function() {
+                        if(played) return; // Chỉ phát 1 lần
+                        var p = player.play();
+                        if (p !== undefined) {
+                            p.then(() => { played = true; })
+                             .catch(e => console.log("Auto-play prevented (User interaction needed?):", e));
+                        }
+                    };
+
+                    // Sự kiện 1: Khi trình duyệt báo đã sẵn sàng
+                    player.oncanplay = playAttempt;
+
+                    // Sự kiện 2 (Dự phòng): Nếu file đã cache sẵn trong bộ nhớ
+                    if (player.readyState >= 3) {
+                        playAttempt();
+                    }
+
+                    // Nút bấm thủ công
+                    if (btn) {
+                        btn.onclick = function(e) {
+                            e.stopPropagation();
+                            player.currentTime = 0;
+                            player.play();
+                        };
+                    }
+                }
+            }
+        })();
+
+        // Click Listener
+        document.addEventListener('click', function(e) {
+            if(!e.target.classList.contains('tip-trigger')) {
+                document.querySelectorAll('.tip-trigger.active').forEach(t => t.classList.remove('active'));
+            }
+        });
+
     })();
 </script>
