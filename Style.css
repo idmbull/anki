@@ -52,63 +52,35 @@ html { overflow-y: scroll; }
 }
 
 .container {
-    width: 95%; margin: 0 auto;
-    background-color: var(--bg-card); border-radius: 16px;
-    overflow: hidden; box-shadow: var(--shadow);
-    border: 1px solid var(--border); box-sizing: border-box;
-    /* Thêm transition để khi ảnh co giãn, khung bao cũng co giãn mượt hơn chút */
-    transition: all 0.2s ease;
+    /* Mặc định cho Mobile (Màn hình nhỏ) */
+    width: 95%;       /* Chiếm 95% chiều ngang màn hình */
+    margin: 0 auto;   /* Căn giữa */
+    
+    background-color: var(--bg-card);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+    border: 1px solid var(--border);
+    box-sizing: border-box; /* Quan trọng: padding không làm phình thẻ */
 }
 
-/* --- 4. IMAGE (UPDATED HOVER EFFECT) --- */
+/* --- 4. IMAGE --- */
 .image-area {
-    width: 100%; 
-    /* Mặc định: Giữ tỷ lệ 16:9 cho gọn */
-    aspect-ratio: 16 / 9; 
-    max-height: 350px;
+    width: 100%; aspect-ratio: 16 / 9; max-height: 350px;
     background-color: var(--bg-body); position: relative;
     overflow: hidden; border-bottom: 1px solid var(--border); box-sizing: border-box;
-    cursor: zoom-in; /* Con trỏ hình kính lúp */
-    transition: all 0.3s ease; /* Hiệu ứng mượt */
 }
 
-.image-area img { 
-    width: 100%; 
-    height: 100%; 
-    object-fit: cover; /* Mặc định: Cắt ảnh để lấp đầy khung */
-    display: block; 
-    transition: all 0.3s ease;
-}
+.image-area img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.image-overlay { position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); pointer-events: none; opacity: 0.5; }
 
-.image-overlay { 
-    position: absolute; inset: 0; 
-    background: linear-gradient(to top, rgba(0,0,0,0.5), transparent); 
-    pointer-events: none; opacity: 0.5; 
-    transition: opacity 0.3s ease;
-}
-
+/* Placeholder */
 .image-area.placeholder {
     display: flex; align-items: center; justify-content: center;
     background-image: radial-gradient(var(--border) 1px, transparent 1px);
     background-size: 10px 10px; background-color: var(--bg-body);
 }
-
-/* --- HIỆU ỨNG HOVER --- */
-/* Khi di chuột vào vùng ảnh: */
-.image-area:hover {
-    aspect-ratio: unset; /* Bỏ tỷ lệ 16:9 */
-    height: auto;        /* Chiều cao tự do */
-    max-height: 80vh;    /* Giới hạn tối đa 80% màn hình để không bị quá dài */
-}
-
-.image-area:hover img {
-    object-fit: contain; /* Hiển thị trọn vẹn ảnh, không cắt */
-    height: auto;        /* Chiều cao ảnh tự nhiên */
-}
-
-.image-area:hover .image-overlay {
-    opacity: 0; /* Ẩn lớp phủ tối để nhìn ảnh rõ màu gốc */
-}
+.icon-placeholder { font-size: 48px !important; color: var(--text-secondary); opacity: 0.2; user-select: none; }
 
 /* --- 5. CONTENT --- */
 .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
@@ -139,6 +111,8 @@ html { overflow-y: scroll; }
     font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; opacity: 0.8;
 }
 .definition-text { font-size: 17px; color: var(--text-primary); line-height: 1.6; margin: 0; }
+.vn-block { margin-top: 8px; padding-top: 10px; border-top: 1px dashed var(--divider); }
+.vn-text { font-weight: 500; }
 .example-box {
     background-color: var(--example-bg); border-left: 4px solid var(--accent-color);
     padding: 14px 16px; border-radius: 0 8px 8px 0;
@@ -187,20 +161,36 @@ html { overflow-y: scroll; }
     border-bottom: 2px solid var(--accent-color);
     background: transparent;
     color: var(--accent-color);
-    font-family: inherit; font-size: inherit; font-weight: 700;
-    width: auto; min-width: 40px; max-width: 95%;
-    text-align: center; padding: 0 4px; outline: none;
-    transition: width 0.1s ease, background-color 0.2s;
+    font-family: inherit;
+    font-size: inherit; /* Kế thừa cỡ chữ của câu văn */
+    font-weight: 700;
+    
+    /* QUAN TRỌNG: Để auto và min/max width */
+    width: auto; 
+    min-width: 40px; 
+    max-width: 95%; /* Tránh bị tràn màn hình điện thoại */
+    
+    text-align: center;
+    padding: 0 4px;
+    outline: none;
+    transition: width 0.1s ease, background-color 0.2s; /* Thêm hiệu ứng mượt khi giãn */
+    
+    /* Giúp input nằm thẳng hàng với dòng kẻ */
     vertical-align: baseline; 
 }
 
 .cloze-input:focus {
     background-color: var(--accent-bg);
     border-radius: 4px 4px 0 0;
+    /* Khi focus không set width cứng nữa mà để JS xử lý */
 }
 
 /* --- 10. MARKING RESULTS (BACK) --- */
-.diff-container { display: inline-block; }
+.diff-container {
+    /* background-color: var(--bg-body); padding: 2px 6px; */
+    /* border-radius: 6px; border: 1px solid var(--border); */
+    display: inline-block;
+}
 .char-correct { color: var(--correct-color); font-weight: 700; }
 .char-wrong { color: var(--wrong-color); font-weight: 700; text-decoration: line-through; text-decoration-thickness: 2px; }
 .char-missing { color: var(--missing-color); font-weight: 700; letter-spacing: 2px; }
@@ -214,56 +204,62 @@ html { overflow-y: scroll; }
 }
 
 /* 11. IMAGE LIGHTBOX (MODAL) */
-.modal-backdrop {
-    display: none; position: fixed; z-index: 9999; left: 0; top: 0;
-    width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.9);
-    justify-content: center; align-items: center; cursor: zoom-out; animation: fadeIn 0.2s;
+.image-area img {
+    cursor: zoom-in; /* Hiện con trỏ kính lúp khi di vào ảnh */
 }
-.modal-content { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
-.modal-close-btn { position: absolute; top: 20px; right: 30px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 10000; }
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-.blind-underline { color: var(--text-secondary, #999); }
+.modal-backdrop {
+    display: none; /* Mặc định ẩn */
+    position: fixed;
+    z-index: 9999; /* Luôn nằm trên cùng */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.9); /* Màu nền đen mờ */
+    justify-content: center;
+    align-items: center;
+    cursor: zoom-out; /* Con trỏ thu nhỏ khi click đóng */
+    animation: fadeIn 0.2s;
+}
+
+.modal-content {
+    max-width: 95vw; /* Tối đa 95% chiều rộng màn hình */
+    max-height: 95vh; /* Tối đa 95% chiều cao màn hình */
+    object-fit: contain; /* Giữ tỷ lệ ảnh */
+    border-radius: 4px;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+}
+
+.modal-close-btn {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 10000;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 
 @media (max-width: 480px) {
     .card { padding: 0; align-items: stretch; }
     .container { border-radius: 0; border: none; max-width: none; }
     .content { padding: 20px; }
 }
-@media (min-width: 670px) { .container { width: 650px; } }
 
-/* --- 12. ADDON: NOTES TOGGLE STYLE --- */
-.toggle-box {
-    margin-top: 12px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    background-color: var(--bg-card);
+@media (min-width: 670px) {
+    .container {
+        width: 650px; 
+    }
 }
 
-.toggle-header {
-    background-color: var(--bg-body);
-    padding: 10px 12px;
-    display: flex; align-items: center; gap: 8px;
-    cursor: pointer; transition: background-color 0.2s;
-    user-select: none;
-    font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
+.blind-underline {
+    color: var(--text-secondary, #999);
 }
 
-.toggle-header:hover { background-color: var(--divider); }
-.toggle-header.active { background-color: var(--accent-bg); border-bottom: 1px solid var(--border); }
-.toggle-header.active { color: var(--accent-color); }
-
-.arrow-icon { color: var(--text-secondary); font-size: 20px !important; }
-.toggle-header.active .arrow-icon { color: var(--accent-color); }
-
-.toggle-content {
-    padding: 16px; background-color: var(--bg-card);
-    border-top: 1px solid transparent; animation: slideDown 0.2s ease-out;
-}
-
-.notes-text { font-size: 16px; color: var(--text-primary); line-height: 1.6; margin: 0; }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-.night .toggle-header { background-color: #252a33; }
-.night .toggle-header:hover { background-color: #334155; }
