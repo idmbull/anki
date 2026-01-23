@@ -18,7 +18,12 @@
                 {{/Audio}}
             </div>
             <div class="sub-header">
-                {{#POS}} <span class="pos-tag">{{POS}}</span> {{/POS}}
+                {{#POS}}
+                <!-- Lưu text gốc vào thẻ ẩn -->
+                <div id="pos-raw" style="display:none">{{POS}}</div>
+                <!-- Nơi JS sẽ chèn các thẻ đã tách -->
+                <div id="pos-render" style="display: contents;"></div>
+                {{/POS}}
             </div>
         </div>
 
@@ -26,10 +31,14 @@
 
         <div class="details">
             {{#Definition}}
-            <div><p class="definition-text input-process blind" tts="on">{{Definition}}</p></div>
+            <div>
+                <p class="definition-text input-process blind" tts="on">{{Definition}}</p>
+            </div>
             {{/Definition}}
             {{#Example}}
-            <div class="example-box"><p class="example-text input-process">{{Example}}</p></div>
+            <div class="example-box">
+                <p class="example-text input-process">{{Example}}</p>
+            </div>
             {{/Example}}
         </div>
 
@@ -43,15 +52,15 @@
     // --- HELPERS ---
     function parseContent(rawText) {
         var clean = rawText.replace(/^\{+/, "").replace(/\}+$/, "");
-        var parts = clean.split(/\||｜/); 
+        var parts = clean.split(/\||｜/);
         var text = parts[0].trim();
         var hint = parts.length > 1 ? parts[1].trim() : "...";
-        if (parts.length === 1 && clean.indexOf('|') === -1) hint = "..."; 
+        if (parts.length === 1 && clean.indexOf('|') === -1) hint = "...";
         return { text: text, hint: hint };
     }
 
     function saveInput(index, value) { sessionStorage.setItem('anki_input_' + index, value); }
-    
+
     function resizeInput(el) {
         var len = el.value.length < 3 ? 3 : el.value.length;
         el.style.width = (len + 2) + 'ch';
@@ -59,7 +68,7 @@
 
     function triggerFlip() {
         if (document.activeElement) document.activeElement.blur();
-        setTimeout(function() {
+        setTimeout(function () {
             if (typeof pycmd !== "undefined") pycmd("ans");
             else if (typeof study !== "undefined") study.drawAnswer();
             else if (typeof AnkiDroidJS !== "undefined") AnkiDroidJS.ankiShowAnswer();
@@ -67,30 +76,30 @@
     }
 
     // --- EVENT DELEGATION ---
-    document.addEventListener('input', function(e) {
-        if(e.target.classList.contains('cloze-input')) {
+    document.addEventListener('input', function (e) {
+        if (e.target.classList.contains('cloze-input')) {
             saveInput(e.target.dataset.index, e.target.value);
             resizeInput(e.target);
         }
     });
-    
-    document.addEventListener('keydown', function(e) {
-        if(e.target.classList.contains('cloze-input') && (e.key === "Enter" || e.keyCode === 13)) {
+
+    document.addEventListener('keydown', function (e) {
+        if (e.target.classList.contains('cloze-input') && (e.key === "Enter" || e.keyCode === 13)) {
             e.preventDefault(); triggerFlip();
         }
     });
 
     // --- MAIN LOGIC ---
-    (function() {
+    (function () {
         sessionStorage.clear();
         var containers = document.querySelectorAll('.input-process');
         var inputIndex = 0;
 
-        containers.forEach(function(container) {
+        containers.forEach(function (container) {
             var bolds = container.querySelectorAll('b, strong, span[style*="font-weight: bold"]');
-            bolds.forEach(function(b) {
+            bolds.forEach(function (b) {
                 var data = parseContent(b.textContent);
-                
+
                 if (b.closest('.blind')) {
                     b.outerHTML = '<span class="blind-underline">' + '.'.repeat(data.text.length || 3) + '</span>';
                     return;
@@ -98,24 +107,47 @@
 
                 var width = Math.max(data.text.length, data.hint.length) + 3;
                 var html = '<input type="text" class="cloze-input" data-index="' + inputIndex + '"' +
-                           ' placeholder="' + data.hint + '" autocomplete="off" style="width:' + width + 'ch">';
-                
+                    ' placeholder="' + data.hint + '" autocomplete="off" style="width:' + width + 'ch">';
+
                 b.outerHTML = html;
                 inputIndex++;
             });
 
             var content = container.innerHTML;
-            if(content.indexOf('{') > -1) {
-                content = content.replace(/\{([^|}]+)\|([^}]+)\}/g, function(match, word, tip) {
+            if (content.indexOf('{') > -1) {
+                content = content.replace(/\{([^|}]+)\|([^}]+)\}/g, function (match, word, tip) {
                     return '<span class="tip-trigger" data-tip="' + tip + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + word + '</span>';
                 });
                 container.innerHTML = content;
             }
         });
 
-        setTimeout(function() {
+        setTimeout(function () {
             var first = document.querySelector('.cloze-input');
-            if(first) first.focus();
+            if (first) first.focus();
         }, 100);
+
+        // --- POS SPLITTER ---
+        (function () {
+            var rawPos = document.getElementById('pos-raw');
+            var renderArea = document.getElementById('pos-render');
+
+            if (rawPos && renderArea) {
+                var text = rawPos.innerText;
+                // Tách chuỗi dựa trên dấu phẩy (hỗ trợ cả dấu phẩy tiếng Anh và tiếng Nhật/Trung nếu có)
+                var parts = text.split(/,|、|;/);
+
+                var html = parts.map(function (part) {
+                    var p = part.trim();
+                    if (p) {
+                        // Tạo thẻ span với class pos-tag có sẵn trong CSS của bạn
+                        return '<span class="pos-tag">' + p + '</span>';
+                    }
+                    return '';
+                }).join('');
+
+                renderArea.innerHTML = html;
+            }
+        })();
     })();
 </script>

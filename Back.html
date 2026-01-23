@@ -10,7 +10,7 @@
         <div class="flex flex-col gap-2">
             <div class="header">
                 <h1 class="word">{{Word}}</h1>
-                
+
                 {{#Audio}}
                 <div id="audio-url-storage" style="display:none">{{Audio}}</div>
                 <div class="audio-btn" id="btn-play">
@@ -19,7 +19,13 @@
                 {{/Audio}}
             </div>
             <div class="sub-header">
-                {{#POS}} <span class="pos-tag">{{POS}}</span> {{/POS}}
+                {{#POS}}
+                <!-- Lưu text gốc vào thẻ ẩn -->
+                <div id="pos-raw" style="display:none">{{POS}}</div>
+                <!-- Nơi JS sẽ chèn các thẻ đã tách -->
+                <div id="pos-render" style="display: contents;"></div>
+                {{/POS}}
+
                 {{#IPA}} <span class="ipa">{{IPA}}</span> {{/IPA}}
             </div>
         </div>
@@ -28,24 +34,72 @@
 
         <div class="details">
             {{#Definition}}
-            <div><p class="definition-text" tts="on">{{Definition}}</p></div>
+            <div>
+                <p class="definition-text" tts="on">{{Definition}}</p>
+            </div>
             {{/Definition}}
-            {{#Example}}
-            <div class="example-box" tts="on"><p class="example-text check-process">{{Example}}</p></div>
-            {{/Example}}
+{{#Example}}
+<div class="example-box" tts="on">
+    <p class="example-text check-process">{{Example}}</p>
+    
+    {{#ExampleTranslation}}
+    <div class="example-divider"></div>
+    <p class="example-translation">{{ExampleTranslation}}</p>
+    {{/ExampleTranslation}}
+</div>
+{{/Example}}
 
             <!-- NOTES TOGGLE -->
-            {{#Notes}}
+            <!-- {{#Notes}}
             <div class="toggle-box">
                 <div class="toggle-header" onclick="toggleNotes(this)">
                     <span class="material-symbols-outlined arrow-icon">keyboard_arrow_right</span>
-                    
+
                 </div>
                 <div class="toggle-content" style="display: none;">
+                    <div class="notes-text" tts="on">{{Notes}}</div>
+                </div>
+            </div>
+            {{/Notes}} -->
+
+            <!-- NOTES SECTION WITH READ MORE -->
+            <!-- {{#Notes}}
+            <div class="notes-container">
+                <div class="notes-label">NOTES</div>
+                <div class="notes-content collapsed" id="notes-content">
                     <div class="notes-text">{{Notes}}</div>
+                </div>
+                <div id="read-more-btn" class="read-more-btn" onclick="toggleReadMore()" style="display: none;">
+                    Xem thêm
+                </div>
+            </div>
+            {{/Notes}} -->
+
+            <!-- NOTES SECTION (HOVER TO EXPAND) -->
+            {{#Notes}}
+            <div class="notes-container">
+                 <!-- <div class="notes-label">NOTES</div> -->
+                <div class="notes-content" id="notes-content">
+                    <div class="notes-text" tts="on">{{Notes}}</div>
                 </div>
             </div>
             {{/Notes}}
+
+            <script>
+                // --- AUTO DETECT LONG NOTES ---
+                (function () {
+                    var el = document.getElementById('notes-content');
+                    // Chiều cao giới hạn (khớp với max-height trong CSS: 75px ~ 3 dòng)
+                    var limit = 75;
+
+                    if (el) {
+                        // Nếu nội dung thực tế cao hơn giới hạn
+                        if (el.scrollHeight > limit) {
+                            el.classList.add('is-long');
+                        }
+                    }
+                })();
+            </script>
         </div>
 
         {{#Tag}}<div class="tags-section" id="tag-container">{{Tag}}</div>{{/Tag}}
@@ -86,42 +140,42 @@
     function openModal(el) {
         var m = document.getElementById('img-modal');
         var i = document.getElementById('img-modal-src');
-        if(m && i) { m.style.display = 'flex'; i.src = el.src; }
+        if (m && i) { m.style.display = 'flex'; i.src = el.src; }
     }
 
     // --- MAIN LOGIC ---
-    (function() {
-        
+    (function () {
+
         // 1. XỬ LÝ TEXT (HIỂN THỊ NGAY LẬP TỨC - KHÔNG DELAY)
         try {
             var allTextAreas = document.querySelectorAll('.definition-text, .check-process, .notes-text');
-            
+
             // Cloze Check
             var checkContainers = document.querySelectorAll('.check-process');
             var inputIndex = 0;
-            checkContainers.forEach(function(container) {
+            checkContainers.forEach(function (container) {
                 var bolds = container.querySelectorAll('b, strong, span[style*="font-weight: bold"]');
-                bolds.forEach(function(b) {
+                bolds.forEach(function (b) {
                     var data = parseContent(b.textContent);
                     var correct = data.text;
                     var user = sessionStorage.getItem('anki_input_' + inputIndex) || "";
-                    
+
                     var html = '<span class="diff-container">';
                     var cArr = correct.split('');
                     var uArr = user.split('');
                     var max = Math.max(cArr.length, uArr.length);
                     var err = false;
-                    for(var i=0; i<max; i++) {
-                        var c = cArr[i]||"", u = uArr[i]||"";
-                        if(c.toLowerCase() === u.toLowerCase()) html += '<span class="char-correct">'+c+'</span>';
+                    for (var i = 0; i < max; i++) {
+                        var c = cArr[i] || "", u = uArr[i] || "";
+                        if (c.toLowerCase() === u.toLowerCase()) html += '<span class="char-correct">' + c + '</span>';
                         else {
                             err = true;
-                            html += (u==="") ? '<span class="char-missing">_</span>' : '<span class="char-wrong">'+u+'</span>';
+                            html += (u === "") ? '<span class="char-missing">_</span>' : '<span class="char-wrong">' + u + '</span>';
                         }
                     }
                     html += '</span>';
-                    if(err) html += ' <span class="correction-arrow">➜</span> <span class="correct-full">'+correct+'</span>';
-                    else html = '<span class="char-correct">'+correct+'</span>';
+                    if (err) html += ' <span class="correction-arrow">➜</span> <span class="correct-full">' + correct + '</span>';
+                    else html = '<span class="char-correct">' + correct + '</span>';
 
                     b.outerHTML = html;
                     inputIndex++;
@@ -130,32 +184,32 @@
 
             // Notes Tooltips
             var noteContainers = document.querySelectorAll('.notes-text');
-            noteContainers.forEach(function(container) {
+            noteContainers.forEach(function (container) {
                 var bolds = container.querySelectorAll('b, strong');
-                bolds.forEach(function(b) {
+                bolds.forEach(function (b) {
                     var data = parseContent(b.textContent);
                     if (data.hint) {
                         b.classList.add('tip-trigger');
                         b.setAttribute('data-tip', data.hint);
                         b.setAttribute('onclick', "this.classList.toggle('active'); event.stopPropagation();");
-                        b.innerText = data.text; 
+                        b.innerText = data.text;
                     }
                 });
             });
 
             // {word|tip} Replacement
-            allTextAreas.forEach(function(area) {
+            allTextAreas.forEach(function (area) {
                 var html = area.innerHTML;
-                if(html.indexOf('{') > -1) {
-                    html = html.replace(/\{([^|}]+)\|([^}]+)\}/g, function(m, w, t) {
-                        return '<span class="tip-trigger" data-tip="'+t+'" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">'+w+'</span>';
+                if (html.indexOf('{') > -1) {
+                    html = html.replace(/\{([^|}]+)\|([^}]+)\}/g, function (m, w, t) {
+                        return '<span class="tip-trigger" data-tip="' + t + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + w + '</span>';
                     });
                     area.innerHTML = html;
                 }
                 // Reveal text immediately
                 area.classList.add('text-revealed');
             });
-            
+
             // Fallback reveal
             allTextAreas.forEach(el => el.classList.add('text-revealed'));
 
@@ -166,21 +220,21 @@
 
         // Tags
         var tagContainer = document.getElementById('tag-container');
-        if (!tagContainer) tagContainer = document.getElementById('tags-container'); 
+        if (!tagContainer) tagContainer = document.getElementById('tags-container');
         if (tagContainer && tagContainer.innerText.trim()) {
             var tagsText = tagContainer.innerText.trim();
             var tags = tagsText.indexOf(',') > -1 ? tagsText.split(',') : tagsText.split(',');
-            tagContainer.innerHTML = tags.map(function(t) {
+            tagContainer.innerHTML = tags.map(function (t) {
                 return t.trim() ? '<span class="tag-pill">' + t.trim() + '</span>' : '';
             }).join('');
         }
 
         // 2. XỬ LÝ AUDIO (THÔNG MINH - DỰA TRÊN SỰ KIỆN)
         // Phần này chạy độc lập, không chặn hiển thị text
-        (function() {
+        (function () {
             var urlDiv = document.getElementById('audio-url-storage');
             var btn = document.getElementById('btn-play');
-            
+
             if (urlDiv) {
                 var audioUrl = urlDiv.innerText.trim();
                 if (audioUrl) {
@@ -195,19 +249,19 @@
                     // Reset
                     player.pause();
                     player.currentTime = 0;
-                    
+
                     // Gán nguồn mới
                     player.src = audioUrl;
                     player.load(); // Bắt buộc trình duyệt tải ngay
 
                     // LOGIC TỰ ĐỘNG PHÁT THÔNG MINH
                     var played = false;
-                    var playAttempt = function() {
-                        if(played) return; // Chỉ phát 1 lần
+                    var playAttempt = function () {
+                        if (played) return; // Chỉ phát 1 lần
                         var p = player.play();
                         if (p !== undefined) {
                             p.then(() => { played = true; })
-                             .catch(e => console.log("Auto-play prevented (User interaction needed?):", e));
+                                .catch(e => console.log("Auto-play prevented (User interaction needed?):", e));
                         }
                     };
 
@@ -221,7 +275,7 @@
 
                     // Nút bấm thủ công
                     if (btn) {
-                        btn.onclick = function(e) {
+                        btn.onclick = function (e) {
                             e.stopPropagation();
                             player.currentTime = 0;
                             player.play();
@@ -232,11 +286,66 @@
         })();
 
         // Click Listener
-        document.addEventListener('click', function(e) {
-            if(!e.target.classList.contains('tip-trigger')) {
+        document.addEventListener('click', function (e) {
+            if (!e.target.classList.contains('tip-trigger')) {
                 document.querySelectorAll('.tip-trigger.active').forEach(t => t.classList.remove('active'));
             }
         });
 
+        // --- POS SPLITTER ---
+        (function () {
+            var rawPos = document.getElementById('pos-raw');
+            var renderArea = document.getElementById('pos-render');
+
+            if (rawPos && renderArea) {
+                var text = rawPos.innerText;
+                // Tách chuỗi dựa trên dấu phẩy (hỗ trợ cả dấu phẩy tiếng Anh và tiếng Nhật/Trung nếu có)
+                var parts = text.split(/,|、|;/);
+
+                var html = parts.map(function (part) {
+                    var p = part.trim();
+                    if (p) {
+                        // Tạo thẻ span với class pos-tag có sẵn trong CSS của bạn
+                        return '<span class="pos-tag">' + p + '</span>';
+                    }
+                    return '';
+                }).join('');
+
+                renderArea.innerHTML = html;
+            }
+        })();
+
     })();
+
+    // --- READ MORE LOGIC ---
+    (function () {
+        var content = document.getElementById('notes-content');
+        var btn = document.getElementById('read-more-btn');
+
+        if (content && btn) {
+            // Kiểm tra xem nội dung có bị tràn (overflow) không
+            // So sánh chiều cao thực tế (scrollHeight) với chiều cao bị giới hạn (clientHeight)
+            if (content.scrollHeight > content.clientHeight) {
+                btn.style.display = 'inline-block'; // Hiện nút nếu nội dung dài
+            }
+        }
+    })();
+
+    // Hàm xử lý khi bấm nút
+    function toggleReadMore() {
+        var content = document.getElementById('notes-content');
+        var btn = document.getElementById('read-more-btn');
+
+        if (content.classList.contains('collapsed')) {
+            // Mở rộng
+            content.classList.remove('collapsed');
+            content.classList.add('expanded');
+            btn.innerText = "Thu gọn";
+        } else {
+            // Thu gọn
+            content.classList.remove('expanded');
+            content.classList.add('collapsed');
+            btn.innerText = "Xem thêm";
+        }
+    }
 </script>
