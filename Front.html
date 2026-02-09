@@ -1,8 +1,13 @@
-<div class="container">
+<div class="container" id="main-container">
     {{#Image}}
     <div class="image-area placeholder">
         <img src="{{Image}}" alt="Image" onerror="this.style.display='none'">
         <div class="image-overlay"></div>
+    </div>
+    {{/Image}}
+    {{^Image}}
+    <div class="image-area placeholder" style="display: flex; align-items: center; justify-content: center;">
+        <span class="material-symbols-outlined" style="font-size: 48px; opacity: 0.1; color: var(--text-secondary);">image</span>
     </div>
     {{/Image}}
 
@@ -11,17 +16,18 @@
             <div class="header">
                 {{#Vietnamese}}<h1 class="word">{{Vietnamese}}</h1>{{/Vietnamese}}
                 {{^Vietnamese}}<h1 class="word">___</h1>{{/Vietnamese}}
+                
                 {{#Audio}}
-                <div class="audio-btn" onclick="new Audio('{{Audio}}').play(); event.stopPropagation();">
+                <!-- Audio ẩn để JS gọi -->
+                <div id="front-audio" style="display:none">{{Audio}}</div> 
+                <div class="audio-btn" onclick="playAudio()">
                     <span class="material-symbols-outlined" style="font-size: 24px;">volume_up</span>
                 </div>
                 {{/Audio}}
             </div>
             <div class="sub-header">
                 {{#POS}}
-                <!-- Lưu text gốc vào thẻ ẩn -->
                 <div id="pos-raw" style="display:none">{{POS}}</div>
-                <!-- Nơi JS sẽ chèn các thẻ đã tách -->
                 <div id="pos-render" style="display: contents;"></div>
                 {{/POS}}
             </div>
@@ -35,27 +41,38 @@
                 <p class="definition-text input-process blind" tts="on">{{Definition}}</p>
             </div>
             {{/Definition}}
-            {{#Example}}
-            <div class="example-box">
-                <p class="example-text input-process">{{Example}}</p>
-            </div>
-            {{/Example}}
+            
+            <div id="raw-examples" style="display:none">{{Example}}</div>
+            <div id="examples-render"></div>
         </div>
 
         <div style="text-align: center; color: var(--text-secondary); font-size: 14px; padding-top:20px; opacity: 0.7;">
             Type answer & Press Enter
         </div>
+        
+        <!-- TAGS ẨN ĐỂ CHECK CHẾ ĐỘ -->
+        <div id="check-tags" style="display:none">{{Tags}} {{Tag}}</div>
     </div>
 </div>
 
 <script>
-    // --- HELPERS ---
+    // --- 1. HÀM HỖ TRỢ AUDIO & MODE ---
+    var audioPlayed = false;
+
+    function playAudio() {
+        var audioDiv = document.getElementById('front-audio');
+        if (audioDiv) {
+            var url = audioDiv.innerText.trim();
+            if (url) new Audio(url).play();
+        }
+    }
+
+    // --- 2. HÀM XỬ LÝ INPUT ---
     function parseContent(rawText) {
-        var clean = rawText.replace(/^\{+/, "").replace(/\}+$/, "");
+        var clean = rawText.trim().replace(/^\{/, "").replace(/\}$/, "");
         var parts = clean.split(/\||｜/);
         var text = parts[0].trim();
         var hint = parts.length > 1 ? parts[1].trim() : "...";
-        if (parts.length === 1 && clean.indexOf('|') === -1) hint = "...";
         return { text: text, hint: hint };
     }
 
@@ -75,7 +92,13 @@
         }, 10);
     }
 
-    // --- EVENT DELEGATION ---
+    function getLinesFromHTML(htmlContent) {
+        if (!htmlContent) return [];
+        var val = htmlContent.replace(/<div>/gi, '<br>').replace(/<\/div>/gi, '');
+        var lines = val.split(/<br\s*\/?>/i);
+        return lines.filter(function(line) { return line.trim() !== ''; });
+    }
+
     document.addEventListener('input', function (e) {
         if (e.target.classList.contains('cloze-input')) {
             saveInput(e.target.dataset.index, e.target.value);
@@ -89,65 +112,102 @@
         }
     });
 
-    // --- MAIN LOGIC ---
+    // --- 3. MAIN LOGIC ---
     (function () {
         sessionStorage.clear();
+
+        // A. Render Examples
+        var rawEx = document.getElementById('raw-examples');
+        var renderEx = document.getElementById('examples-render');
+        
+        if (rawEx && renderEx) {
+            var content = rawEx.innerHTML;
+            var lines = getLinesFromHTML(content);
+            var htmlBuilder = '';
+
+            lines.forEach(function(line) {
+                var parts = line.split('::');
+                var enText = parts[0].trim();
+                htmlBuilder += '<div class="example-box">';
+                htmlBuilder += '<p class="example-text input-process">' + enText + '</p>';
+                htmlBuilder += '</div>';
+            });
+            renderEx.innerHTML = htmlBuilder;
+        }
+
+        // B. Process Inputs
         var containers = document.querySelectorAll('.input-process');
         var inputIndex = 0;
 
         containers.forEach(function (container) {
             var bolds = container.querySelectorAll('b, strong, span[style*="font-weight: bold"]');
             bolds.forEach(function (b) {
-                var data = parseContent(b.textContent);
-
+                var rawText = b.textContent;
+                var data = parseContent(rawText);
+                
                 if (b.closest('.blind')) {
                     b.outerHTML = '<span class="blind-underline">' + '.'.repeat(data.text.length || 3) + '</span>';
                     return;
                 }
 
                 var width = Math.max(data.text.length, data.hint.length) + 3;
-                var html = '<input type="text" class="cloze-input" data-index="' + inputIndex + '"' +
+                var inputHtml = '<input type="text" class="cloze-input" data-index="' + inputIndex + '"' +
                     ' placeholder="' + data.hint + '" autocomplete="off" style="width:' + width + 'ch">';
 
-                b.outerHTML = html;
+                b.outerHTML = inputHtml;
                 inputIndex++;
             });
-
-            var content = container.innerHTML;
-            if (content.indexOf('{') > -1) {
-                content = content.replace(/\{([^|}]+)\|([^}]+)\}/g, function (match, word, tip) {
-                    return '<span class="tip-trigger" data-tip="' + tip + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + word + '</span>';
+            
+            // Tooltips
+            var cHtml = container.innerHTML;
+            if (cHtml.indexOf('{') > -1) {
+                cHtml = cHtml.replace(/\{([^|｜}<]+)(?:<[^>]+>)*[|｜]([^}]+)\}/g, function (match, word, tip) {
+                     return '<span class="tip-trigger" data-tip="' + tip.replace(/"/g, '&quot;') + '" onclick="this.classList.toggle(\'active\'); event.stopPropagation();">' + word + '</span>';
                 });
-                container.innerHTML = content;
+                container.innerHTML = cHtml;
             }
         });
 
+        // Focus
         setTimeout(function () {
             var first = document.querySelector('.cloze-input');
             if (first) first.focus();
         }, 100);
 
-        // --- POS SPLITTER ---
+        // C. POS
         (function () {
             var rawPos = document.getElementById('pos-raw');
             var renderArea = document.getElementById('pos-render');
-
             if (rawPos && renderArea) {
                 var text = rawPos.innerText;
-                // Tách chuỗi dựa trên dấu phẩy (hỗ trợ cả dấu phẩy tiếng Anh và tiếng Nhật/Trung nếu có)
                 var parts = text.split(/,|、|;/);
-
-                var html = parts.map(function (part) {
-                    var p = part.trim();
-                    if (p) {
-                        // Tạo thẻ span với class pos-tag có sẵn trong CSS của bạn
-                        return '<span class="pos-tag">' + p + '</span>';
-                    }
-                    return '';
-                }).join('');
-
-                renderArea.innerHTML = html;
+                renderArea.innerHTML = parts.map(function(p){ return p.trim() ? '<span class="pos-tag">' + p.trim() + '</span>' : ''; }).join('');
             }
         })();
+
+        // --- D. AUTO DICTATION MODE (CHECK TAGS) ---
+        (function() {
+            var tagDiv = document.getElementById('check-tags');
+            if (tagDiv) {
+                var tags = tagDiv.innerText.toLowerCase();
+                // Logic: Nếu có tag -> Ẩn chữ, xóa gợi ý, phát audio
+                if (tags.includes('dictation') || tags.includes('leech')) {
+                    
+                    // 1. Thêm class ẩn nội dung
+                    document.getElementById('main-container').classList.add('dictation-mode');
+                    
+                    // 2. Xóa placeholder (gợi ý) trong ô input
+                    var inputs = document.querySelectorAll('.cloze-input');
+                    inputs.forEach(function(inp) { inp.placeholder = ""; });
+
+                    // 3. Tự động phát audio
+                    if (!audioPlayed) {
+                        setTimeout(playAudio, 500);
+                        audioPlayed = true;
+                    }
+                }
+            }
+        })();
+
     })();
 </script>

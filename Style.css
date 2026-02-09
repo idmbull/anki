@@ -54,29 +54,30 @@ html { overflow-y: scroll; }
 .container {
     width: 95%; margin: 0 auto;
     background-color: var(--bg-card); border-radius: 16px;
-    overflow: hidden; box-shadow: var(--shadow);
+    /* QUAN TRỌNG: Phải là visible thì Tooltip mới bay ra ngoài khung được */
+    overflow: visible; 
+    box-shadow: var(--shadow);
     border: 1px solid var(--border); box-sizing: border-box;
-    /* Thêm transition để khi ảnh co giãn, khung bao cũng co giãn mượt hơn chút */
     transition: all 0.2s ease;
+    position: relative;
 }
 
-/* --- 4. IMAGE (UPDATED HOVER EFFECT) --- */
+/* --- 4. IMAGE --- */
 .image-area {
     width: 100%; 
-    /* Mặc định: Giữ tỷ lệ 16:9 cho gọn */
     aspect-ratio: 16 / 9; 
     max-height: 350px;
     background-color: var(--bg-body); position: relative;
+    /* Bo góc thủ công vì container không còn overflow:hidden */
+    border-radius: 16px 16px 0 0;
     overflow: hidden; border-bottom: 1px solid var(--border); box-sizing: border-box;
-    cursor: zoom-in; /* Con trỏ hình kính lúp */
-    transition: all 0.3s ease; /* Hiệu ứng mượt */
+    cursor: zoom-in; 
+    transition: all 0.3s ease;
 }
 
 .image-area img { 
-    width: 100%; 
-    height: 100%; 
-    object-fit: cover; /* Mặc định: Cắt ảnh để lấp đầy khung */
-    display: block; 
+    width: 100%; height: 100%; 
+    object-fit: cover; display: block; 
     transition: all 0.3s ease;
 }
 
@@ -93,22 +94,11 @@ html { overflow-y: scroll; }
     background-size: 10px 10px; background-color: var(--bg-body);
 }
 
-/* --- HIỆU ỨNG HOVER --- */
-/* Khi di chuột vào vùng ảnh: */
 .image-area:hover {
-    aspect-ratio: unset; /* Bỏ tỷ lệ 16:9 */
-    height: auto;        /* Chiều cao tự do */
-    max-height: 80vh;    /* Giới hạn tối đa 80% màn hình để không bị quá dài */
+    aspect-ratio: unset; height: auto; max-height: 80vh;
 }
-
-.image-area:hover img {
-    object-fit: contain; /* Hiển thị trọn vẹn ảnh, không cắt */
-    height: auto;        /* Chiều cao ảnh tự nhiên */
-}
-
-.image-area:hover .image-overlay {
-    opacity: 0; /* Ẩn lớp phủ tối để nhìn ảnh rõ màu gốc */
-}
+.image-area:hover img { object-fit: contain; height: auto; }
+.image-area:hover .image-overlay { opacity: 0; }
 
 /* --- 5. CONTENT --- */
 .content { padding: 24px; display: flex; flex-direction: column; gap: 20px; }
@@ -142,8 +132,12 @@ html { overflow-y: scroll; }
 .example-box {
     background-color: var(--example-bg); border-left: 4px solid var(--accent-color);
     padding: 14px 16px; border-radius: 0 8px 8px 0;
+    display: flex; flex-direction: column; gap: 4px;
 }
+.example-box + .example-box { margin-top: 12px; }
 .example-text { font-style: italic; color: var(--example-text); font-size: 16px; line-height: 1.6; margin: 0; }
+.example-translation { font-size: 15px; color: var(--text-secondary); font-style: normal; margin: 0; line-height: 1.5; }
+.example-divider { height: 1px; background-color: var(--accent-color); opacity: 0.2; margin: 8px 0; }
 
 /* --- 7. TAGS --- */
 .tags-section { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; padding-top: 16px; border-top: 1px solid var(--border); }
@@ -153,9 +147,9 @@ html { overflow-y: scroll; }
     padding: 4px 12px; border-radius: 99px; border: 1px solid var(--border);
 }
 
-/* --- 8. TOOLTIPS --- */
+/* --- 8. TOOLTIPS (SỬA ĐỔI) --- */
 .tip-trigger {
-    border-bottom: 2px dotted var(--accent-color); cursor: pointer;
+    border-bottom: 1px dotted var(--accent-color); cursor: pointer;
     position: relative; display: inline-block;
 }
 .tip-trigger:hover, .tip-trigger.active { background-color: var(--accent-bg); color: var(--accent-color); }
@@ -166,13 +160,14 @@ html { overflow-y: scroll; }
     background-color: #334155; color: white; padding: 6px 12px;
     border-radius: 6px; font-size: 13px; width: max-content; max-width: 220px;
     white-space: pre-wrap; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-    opacity: 0; visibility: hidden; pointer-events: none; transition: all 0.2s; z-index: 100;
+    opacity: 0; visibility: hidden; pointer-events: none; transition: all 0.2s; 
+    z-index: 9999; /* Z-Index cao để nổi lên trên */
 }
 .tip-trigger::before {
     content: ''; position: absolute; bottom: 115%; left: 50%;
     transform: translateX(-50%) translateY(10px);
     border: 6px solid transparent; border-top-color: #334155;
-    opacity: 0; visibility: hidden; transition: all 0.2s;
+    opacity: 0; visibility: hidden; transition: all 0.2s; z-index: 9999;
 }
 .tip-trigger:hover::after, .tip-trigger.active::after,
 .tip-trigger:hover::before, .tip-trigger.active::before {
@@ -183,28 +178,20 @@ html { overflow-y: scroll; }
 
 /* --- 9. INPUT FIELDS (FRONT) --- */
 .cloze-input {
-    border: none;
-    border-bottom: 2px solid var(--accent-color);
-    background: transparent;
-    color: var(--accent-color);
+    border: none; border-bottom: 2px solid var(--accent-color);
+    background: transparent; color: var(--accent-color);
     font-family: inherit; font-size: inherit; font-weight: 700;
     width: auto; min-width: 40px; max-width: 95%;
     text-align: center; padding: 0 4px; outline: none;
-    transition: width 0.1s ease, background-color 0.2s;
-    vertical-align: baseline; 
+    transition: width 0.1s ease, background-color 0.2s; vertical-align: baseline; 
 }
-
-.cloze-input:focus {
-    background-color: var(--accent-bg);
-    border-radius: 4px 4px 0 0;
-}
+.cloze-input:focus { background-color: var(--accent-bg); border-radius: 4px 4px 0 0; }
 
 /* --- 10. MARKING RESULTS (BACK) --- */
 .diff-container { display: inline-block; }
 .char-correct { color: var(--correct-color); font-weight: 700; }
 .char-wrong { color: var(--wrong-color); font-weight: 700; text-decoration: line-through; text-decoration-thickness: 2px; }
 .char-missing { color: var(--missing-color); font-weight: 700; letter-spacing: 2px; }
-
 .correct-full { color: var(--correct-color); font-weight: 700; margin-left: 4px; }
 .correction-arrow { color: var(--text-secondary); font-weight: 400; margin: 0 4px; font-size: 0.9em; }
 
@@ -213,7 +200,7 @@ html { overflow-y: scroll; }
   display: inline-block; line-height: 1; text-transform: none; white-space: nowrap;
 }
 
-/* 11. IMAGE LIGHTBOX (MODAL) */
+/* 11. MODAL */
 .modal-backdrop {
     display: none; position: fixed; z-index: 9999; left: 0; top: 0;
     width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.9);
@@ -222,7 +209,6 @@ html { overflow-y: scroll; }
 .modal-content { max-width: 95vw; max-height: 95vh; object-fit: contain; border-radius: 4px; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
 .modal-close-btn { position: absolute; top: 20px; right: 30px; color: #f1f1f1; font-size: 40px; font-weight: bold; cursor: pointer; z-index: 10000; }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
 .blind-underline { color: var(--text-secondary, #999); }
 
 @media (max-width: 480px) {
@@ -232,192 +218,82 @@ html { overflow-y: scroll; }
 }
 @media (min-width: 670px) { .container { width: 650px; } }
 
-/* --- 12. ADDON: NOTES TOGGLE STYLE --- */
-.toggle-box {
-    margin-top: 12px;
+/* --- NOTES HOVER STYLE (QUAN TRỌNG: ĐÃ SỬA) --- */
+.notes-container {
+    margin-top: 16px; padding: 16px;
+    background-color: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 8px;
-    overflow: hidden;
-    background-color: var(--bg-card);
+    cursor: default;
+    overflow: visible; /* Cho phép tooltip hiện */
 }
 
-.toggle-header {
-    background-color: var(--bg-body);
-    padding: 10px 12px;
+.notes-label {
+    font-size: 11px; font-weight: 700; color: var(--text-secondary); 
+    text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px;
     display: flex; align-items: center; gap: 8px;
-    cursor: pointer; transition: background-color 0.2s;
-    user-select: none;
-    font-size: 13px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px;
 }
-
-.toggle-header:hover { background-color: var(--divider); }
-.toggle-header.active { background-color: var(--accent-bg); border-bottom: 1px solid var(--border); }
-.toggle-header.active { color: var(--accent-color); }
-
-.arrow-icon { color: var(--text-secondary); font-size: 20px !important; }
-.toggle-header.active .arrow-icon { color: var(--accent-color); }
-
-.toggle-content {
-    padding: 16px; background-color: var(--bg-card);
-    border-top: 1px solid transparent; animation: slideDown 0.2s ease-out;
-}
-
-.notes-text { font-size: 16px; color: var(--text-primary); line-height: 1.6; margin: 0; }
-@keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
-
-.night .toggle-header { background-color: #252a33; }
-.night .toggle-header:hover { background-color: #334155; }
-
-/* --- NOTES READ MORE STYLE --- */
-.notes-container {
-    margin-top: 16px;
-    padding: 16px;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-}
-
-.notes-label {
-    font-size: 11px; font-weight: 700; 
-    color: var(--text-secondary); 
-    margin-bottom: 8px; letter-spacing: 1px;
-}
+.notes-label::after { content: ''; flex: 1; height: 1px; background-color: var(--border); opacity: 0.6; }
+.notes-label::before { font-family: 'Material Symbols Outlined'; content: 'edit_note'; font-size: 18px; font-weight: normal; }
 
 .notes-content {
-    font-size: 16px; 
-    color: var(--text-primary); 
-    line-height: 1.6;
-    position: relative;
-    transition: max-height 0.3s ease;
+    font-size: 16px; color: var(--text-primary); line-height: 1.6;
+    position: relative; transition: max-height 0.5s ease;
+    /* MẶC ĐỊNH LÀ VISIBLE */
+    overflow: visible; 
 }
 
-/* Trạng thái thu gọn: Giới hạn 3 dòng */
-.notes-content.collapsed {
-    display: -webkit-box;
-    -webkit-line-clamp: 3; /* Số dòng muốn hiển thị */
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    max-height: 4.8em; /* Khoảng 3 dòng x 1.6 line-height */
-}
-
-/* Trạng thái mở rộng */
-.notes-content.expanded {
-    display: block;
-    max-height: none;
-    overflow: visible;
-}
-
-/* Nút bấm */
-.read-more-btn {
-    margin-top: 8px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--accent-color);
-    cursor: pointer;
-    user-select: none;
-}
-
-.read-more-btn:hover {
-    text-decoration: underline;
-}
-
-/* --- NOTES HOVER STYLE --- */
-.notes-container {
-    margin-top: 16px;
-    padding: 16px;
-    background-color: var(--bg-card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    /* Khi hover vào khung chứa, con trỏ chuột sẽ đổi để báo hiệu */
-    cursor: default; 
-}
-
-.notes-label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--text-secondary); /* Màu xám */
-    text-transform: uppercase; /* Chuyển thành chữ in hoa */
-    letter-spacing: 1.5px; /* Tăng khoảng cách giữa các chữ cái cho thoáng */
-    margin-bottom: 8px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-/* Thêm đường gạch ngang mờ bên cạnh chữ NOTES */
-.notes-label::after {
-    content: '';
-    flex: 1; /* Tự động kéo dài hết chiều ngang còn lại */
-    height: 1px;
-    background-color: var(--border);
-    opacity: 0.6;
-}
-
-.notes-label::before {
-    font-family: 'Material Symbols Outlined';
-    content: 'edit_note'; /* Mã icon */
-    font-size: 18px;
-    font-weight: normal;
-}
-
-.notes-content {
-    font-size: 16px; 
-    color: var(--text-primary); 
-    line-height: 1.6;
-    position: relative;
-    /* Hiệu ứng chuyển động mượt mà */
-    transition: max-height 0.5s ease;
-    overflow: hidden;
-}
-
-/* --- TRẠNG THÁI KHI NỘI DUNG DÀI (.is-long do JS thêm vào) --- */
-
-/* 1. Mặc định: Thu gọn */
+/* 1. Mặc định: Thu gọn và ẩn phần thừa (để gọn gàng) */
 .notes-content.is-long {
-    max-height: 75px; /* Khoảng 3 dòng */
+    max-height: 75px; 
+    overflow: hidden; /* Chỉ ẩn khi đang đóng */
 }
 
-/* 2. Tạo lớp mờ (Gradient) ở đáy để báo hiệu còn nội dung */
+/* 2. Gradient mờ */
 .notes-content.is-long::after {
-    content: '';
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 40px;
-    /* Màu mờ dần trùng với màu nền thẻ */
+    content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
     background: linear-gradient(to bottom, transparent, var(--bg-card));
-    pointer-events: none;
+    pointer-events: none; transition: opacity 0.3s;
+}
+
+/* 3. Khi Hover: Mở rộng và CHO PHÉP hiển thị tooltip (Visible) */
+.notes-container:hover .notes-content.is-long {
+    max-height: 1000px; 
+    overflow: visible !important; /* QUAN TRỌNG: Phải là visible */
+}
+
+.notes-container:hover .notes-content.is-long::after { opacity: 0; }
+
+/* --- TABLE STYLES --- */
+.table-wrapper { width: 100%; overflow-x: auto; margin-top: 16px; border: 1px solid var(--border); border-radius: 8px; box-shadow: var(--shadow); }
+table { width: 100%; border-collapse: collapse; background-color: var(--bg-card); font-size: 15px; text-align: left; }
+thead { background-color: var(--bg-body); border-bottom: 2px solid var(--border); }
+th { padding: 12px 16px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; font-size: 12px; white-space: nowrap; }
+td { padding: 12px 16px; color: var(--text-primary); border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tbody tr:nth-child(even) { background-color: var(--bg-body); }
+tbody tr:hover { background-color: var(--accent-bg); }
+.night tbody tr:nth-child(even) { background-color: rgba(255, 255, 255, 0.03); }
+.night tbody tr:hover { background-color: rgba(59, 130, 246, 0.15); }
+
+/* --- DICTATION MODE STYLES (CẬP NHẬT GỌN) --- */
+
+/* Khi ở chế độ Dictation (Dựa trên Tag) */
+.dictation-mode .word,                /* Ẩn từ tiếng Việt/Tiêu đề */
+.dictation-mode .sub-header,          /* Ẩn IPA, POS */
+.dictation-mode .definition-text,     /* Ẩn định nghĩa */
+.dictation-mode .example-translation, /* Ẩn dịch nghĩa (nếu có) */
+.dictation-mode .tip-trigger::after,  /* Ẩn tooltip */
+.dictation-mode .cloze-input::placeholder { /* Ẩn gợi ý trong ô input */
+    opacity: 0; 
+    pointer-events: none; 
     transition: opacity 0.3s;
 }
 
-/* 3. Khi Hover: Mở rộng */
-.notes-container:hover .notes-content.is-long {
-    max-height: 1000px; /* Đủ lớn để hiện hết nội dung */
-}
-
-/* 4. Khi Hover: Ẩn lớp mờ đi */
-.notes-container:hover .notes-content.is-long::after {
-    opacity: 0;
-}
-
-/* Đường gạch ngang phân cách giữa ví dụ và nghĩa */
-.example-divider {
-    height: 1px;
-    background-color: var(--accent-color);
-    opacity: 0.2;
-    margin: 8px 0;
-}
-
-/* Style cho phần dịch nghĩa */
-.example-translation {
-    font-size: 15px;               /* Nhỏ hơn text chính một chút */
-    color: var(--text-secondary);  /* Màu xám nhạt để không rối mắt */
-    font-style: normal;            /* Chữ thường, không nghiêng */
-    margin: 0;
-    line-height: 1.5;
-}
-
-/* Chỉnh lại box ví dụ một chút để chứa được cả 2 dòng đẹp hơn */
-.example-box {
-    display: flex;
-    flex-direction: column;
-    gap: 4px; /* Khoảng cách giữa các phần tử */
+/* Làm mờ thay vì ẩn hẳn để báo hiệu có nội dung */
+.dictation-mode .definition-text, 
+.dictation-mode .word {
+    filter: blur(8px);
+    opacity: 0.5;
+    user-select: none;
 }
