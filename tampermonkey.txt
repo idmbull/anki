@@ -1,0 +1,250 @@
+// ==UserScript==
+// @name         Douyin Downloader Pro (Chất lượng & Hàng loạt)
+// @namespace    http://tampermonkey.net/
+// @version      1.2
+// @description  Thêm nút tải video Douyin với tùy chọn chất lượng và khả năng tải hàng loạt theo ID. Hỗ trợ cả URL video tiêu chuẩn và URL modal.
+// @author       Gemini & Bạn
+// @match        https://www.douyin.com/*
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    'use strict';
+
+    // --- CÁC HÀM CỐT LÕI ---
+
+    const downloadVideoBlob = async function (videoUrl, filename = 'douyin-video.mp4') {
+        try {
+            console.log(`[LOG] Bắt đầu tải tệp: ${filename}`);
+            const response = await fetch(videoUrl, {
+                headers: {
+                    'Referer': 'https://www.douyin.com/',
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36'
+                },
+                mode: 'cors',
+                credentials: 'omit'
+            });
+            if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => {
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+            }, 1000);
+            console.log(`[LOG] Đã gửi lệnh tải xuống cho tệp: ${filename}`);
+            return true;
+        } catch (error) {
+            console.error(`[LỖI] Tải xuống thất bại cho ${filename}:`, error);
+            window.open(videoUrl, '_blank');
+            return false;
+        }
+    };
+
+    const getVideoInfoById = async function (videoId) {
+        try {
+            const apiUrl = `https://www.douyin.com/aweme/v1/web/aweme/detail/?device_platform=webapp&aid=6383&channel=channel_pc_web&aweme_id=${videoId}`;
+            console.log(`[LOG] Đang lấy thông tin cho ID: ${videoId}`);
+            const res = await fetch(apiUrl, {
+                headers: { "accept": "application/json, text/plain, */*" },
+                method: "GET",
+                mode: "cors"
+            });
+            if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
+            const data = await res.json();
+            if (!data.aweme_detail) throw new Error('Không tìm thấy chi tiết video cho ID này.');
+            return data;
+        } catch (error) {
+            console.error(`[LỖI] Không thể lấy thông tin cho ID ${videoId}:`, error);
+            throw error;
+        }
+    };
+
+    // [MODIFIED] - Hàm này đã được cập nhật để xử lý nhiều định dạng URL
+    const getVideoInfo = async function (videoUrl) {
+        let videoId = null;
+
+        // Thử mẫu 1: URL video tiêu chuẩn (ví dụ: .../video/12345)
+        let match = videoUrl.match(/video\/(\d+)/);
+        if (match && match[1]) {
+            videoId = match[1];
+        }
+        // Nếu không khớp, thử mẫu 2: URL modal từ trang người dùng (ví dụ: ...?modal_id=12345)
+        else {
+            match = videoUrl.match(/modal_id=(\d+)/);
+            if (match && match[1]) {
+                videoId = match[1];
+            }
+        }
+
+        if (videoId) {
+            console.log(`[LOG] Đã trích xuất Video ID: ${videoId} từ URL.`);
+            return getVideoInfoById(videoId);
+        } else {
+            // Nếu không tìm thấy ID nào, thông báo lỗi rõ ràng hơn
+            throw new Error('Không thể trích xuất ID video từ URL hiện tại. Hãy chắc chắn bạn đang ở trang video chi tiết hoặc đang xem video trong cửa sổ nổi.');
+        }
+    };
+
+    const extractAllQualityUrls = function (videoData) {
+        if (!videoData.aweme_detail?.video?.bit_rate) throw new Error('Không tìm thấy dữ liệu bit_rate.');
+        const qualityUrls = [];
+        videoData.aweme_detail.video.bit_rate.forEach(info => {
+            if (info.play_addr?.url_list?.[0]) {
+                let qualityUrl = info.play_addr.url_list[0];
+                if (!qualityUrl.startsWith("https")) qualityUrl = "https:" + qualityUrl;
+                qualityUrls.push({
+                    url: qualityUrl,
+                    resolution: `${info.play_addr.width}x${info.play_addr.height}`,
+                    fps: info.FPS,
+                    bitrate: info.bit_rate,
+                    codec: info.is_bytevc1 === 1 ? 'ByteVC1 (H.265)' : (info.is_h265 === 1 ? 'H.265' : 'H.264'),
+                    gearName: info.gear_name,
+                    label: `${info.play_addr.height}p @ ${info.FPS}fps`
+                });
+            }
+        });
+        if (qualityUrls.length === 0) throw new Error('Không thể trích xuất bất kỳ URL video nào.');
+        const uniqueUrls = [...new Map(qualityUrls.map(item => [item.url, item])).values()];
+        uniqueUrls.sort((a, b) => b.bitrate - a.bitrate);
+        return uniqueUrls;
+    };
+
+    const showQualitySelector = function (qualityUrls, videoInfo) {
+        return new Promise((resolve) => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 10001; display: flex; justify-content: center; align-items: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;`;
+            const modal = document.createElement('div');
+            modal.style.cssText = `background: #fff; padding: 25px; border-radius: 12px; max-width: 600px; width: 95%; max-height: 90vh; overflow-y: auto; box-shadow: 0 10px 30px rgba(0,0,0,0.2);`;
+            modal.innerHTML = `
+                <h2 style="margin: 0 0 20px 0; color: #161823; font-size: 22px; text-align: center;">Chọn chất lượng & định dạng video</h2>
+                <div style="background: #f1f1f2; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-size: 14px; color: #666;">
+                    <strong>Mô tả:</strong> ${videoInfo.desc.substring(0, 100)}${videoInfo.desc.length > 100 ? '...' : ''}<br>
+                    <strong>Tác giả:</strong> ${videoInfo.nickname}<br>
+                    <strong>Số lượng:</strong> ${qualityUrls.length} phiên bản có sẵn
+                </div>
+                <div id="quality-list-container" style="margin-bottom: 20px; max-height: 400px; overflow-y: auto;"></div>
+                <button id="cancel-btn" style="padding: 12px 20px; background: #6c757d; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; font-size: 16px;">Hủy bỏ</button>
+            `;
+            const qualityListContainer = modal.querySelector('#quality-list-container');
+            qualityUrls.forEach((item, index) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.style.cssText = `padding: 15px; margin: 10px 0; border: 2px solid ${index === 0 ? '#2fb853' : '#e0e0e0'}; border-radius: 10px; cursor: pointer; transition: all 0.2s ease-in-out; background: white;`;
+                itemDiv.innerHTML = `
+                    <div style="font-weight: bold; color: #000; margin-bottom: 10px; font-size: 16px;">Resolution: ${item.resolution} @ ${item.fps}fps</div>
+                    <div style="font-size: 13px; color: #555; line-height: 1.7;">
+                        <strong>Bitrate:</strong> <span style="color: #fe2c55; font-weight: 500;">${Math.round(item.bitrate / 1000)} kbps</span><br>
+                        <strong>Codec:</strong> ${item.codec}
+                        ${index === 0 ? '<div style="color: #2fb853; font-size: 12px; margin-top: 8px; font-weight: bold;">✓ Chất lượng cao nhất (Đề xuất)</div>' : ''}
+                    </div>
+                `;
+                itemDiv.onmouseover = () => { itemDiv.style.borderColor = '#fe2c55'; itemDiv.style.transform = 'scale(1.02)'; };
+                itemDiv.onmouseout = () => { itemDiv.style.borderColor = (index === 0) ? '#2fb853' : '#e0e0e0'; itemDiv.style.transform = 'scale(1)'; };
+                itemDiv.onclick = () => { overlay.remove(); resolve(item); };
+                qualityListContainer.appendChild(itemDiv);
+            });
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            overlay.querySelector('#cancel-btn').onclick = () => { overlay.remove(); resolve(null); };
+            overlay.onclick = (e) => { if (e.target === overlay) { overlay.remove(); resolve(null); }};
+        });
+    };
+
+    // --- CÁC CHỨC NĂNG CHÍNH (SINGLE & BULK) ---
+
+    const runWithQuality = async function () {
+        try {
+            // Logic bên trong hàm này không cần thay đổi, vì nó gọi hàm getVideoInfo đã được cập nhật
+            const videoData = await getVideoInfo(window.location.href);
+            const qualityUrls = extractAllQualityUrls(videoData);
+            const videoInfo = {
+                desc: videoData.aweme_detail.desc || 'douyin-video',
+                id: videoData.aweme_detail.aweme_id,
+                nickname: videoData.aweme_detail.author?.nickname || 'user'
+            };
+            const selectedQuality = await showQualitySelector(qualityUrls, videoInfo);
+            if (!selectedQuality) return console.log('Người dùng đã hủy.');
+            const filename = `${videoInfo.id}_${selectedQuality.resolution}_${selectedQuality.fps}fps.mp4`;
+            await downloadVideoBlob(selectedQuality.url, filename);
+        } catch (error) {
+            console.error('Lỗi tải đơn:', error);
+            alert(`Tải video thất bại: ${error.message}`);
+        }
+    };
+
+    const runBulkDownload = async function () {
+        const userInput = prompt("Nhập danh sách ID video, cách nhau bằng dấu phẩy (,)\n\nVí dụ: 7335800397505137954, 7349149863375392034");
+        if (!userInput) return alert("Đã hủy.");
+        const videoIds = userInput.split(',').map(id => id.trim()).filter(id => id);
+        if (videoIds.length === 0) return alert("Định dạng không hợp lệ.");
+
+        alert(`Chuẩn bị tải ${videoIds.length} video. Quá trình sẽ bắt đầu. Vui lòng không đóng tab.`);
+        for (let i = 0; i < videoIds.length; i++) {
+            const id = videoIds[i];
+            console.log(`[HÀNG LOẠT] Xử lý video ${i + 1}/${videoIds.length} | ID: ${id}`);
+            try {
+                const videoData = await getVideoInfoById(id);
+                const qualityUrls = extractAllQualityUrls(videoData);
+                if (qualityUrls.length > 0) {
+                    const best = qualityUrls[0];
+                    const filename = `${id}_${best.resolution}_${best.fps}fps.mp4`;
+                    console.log(`[HÀNG LOẠT] Đang tải xuống: ${filename}`);
+                    await downloadVideoBlob(best.url, filename);
+                    if (i < videoIds.length - 1) {
+                        console.log(`[HÀNG LOẠT] Chờ 3 giây...`);
+                        await new Promise(resolve => setTimeout(resolve, 3000));
+                    }
+                } else {
+                    console.warn(`[CẢNH BÁO] Không tìm thấy URL cho ID: ${id}`);
+                }
+            } catch (error) {
+                console.error(`[LỖI HÀNG LOẠT] Không thể xử lý ID ${id}: ${error.message}`);
+            }
+        }
+        alert(`Hoàn tất! Đã xử lý ${videoIds.length} video.`);
+    };
+
+    // --- GIAO DIỆN VÀ KHỞI TẠO ---
+
+    const setupUI = function () {
+        const commonBtnStyles = `
+            position: fixed; right: 20px; z-index: 10000;
+            padding: 12px 18px; color: white; border: none; border-radius: 25px;
+            cursor: pointer; font-size: 14px; font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: all 0.3s ease;
+        `;
+        if (!document.querySelector('#dy-quality-download-btn')) {
+            const btn = document.createElement('button');
+            btn.id = 'dy-quality-download-btn';
+            btn.innerHTML = '🎬 Tải Video';
+            btn.style.cssText = commonBtnStyles + `top: 80px; background: linear-gradient(45deg, #fe2c55, #ff4f82);`;
+            btn.onmouseover = () => { btn.style.transform = 'translateY(-2px)'; };
+            btn.onmouseout = () => { btn.style.transform = 'translateY(0)'; };
+            btn.onclick = runWithQuality;
+            document.body.appendChild(btn);
+        }
+        if (!document.querySelector('#dy-bulk-download-btn')) {
+            const bulkBtn = document.createElement('button');
+            bulkBtn.id = 'dy-bulk-download-btn';
+            bulkBtn.innerHTML = '📦 Tải Hàng Loạt';
+            bulkBtn.style.cssText = commonBtnStyles + `top: 140px; background: linear-gradient(45deg, #2fb853, #34d399);`;
+            bulkBtn.onmouseover = () => { bulkBtn.style.transform = 'translateY(-2px)'; };
+            bulkBtn.onmouseout = () => { bulkBtn.style.transform = 'translateY(0)'; };
+            bulkBtn.onclick = runBulkDownload;
+            document.body.appendChild(bulkBtn);
+        }
+    };
+
+    console.log('🎬 Douyin Downloader Pro (v1.2) đã được tải!');
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupUI);
+    } else {
+        setupUI();
+    }
+})();
